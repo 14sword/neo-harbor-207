@@ -1,0 +1,10 @@
+[gd_resource type="ShaderMaterial" load_steps=2 format=3]
+
+[ext_resource type="Shader" path="res://shaders/scan_line.gdshader" id="1"]
+
+[resource]
+shader = ExtResource("1")
+shader_parameter/line_color = Color(0, 0.85, 1, 0.03)
+shader_parameter/time = 0.0
+shader_parameter/line_density = 3.0
+shader_parameter/scan_speed = 0.5

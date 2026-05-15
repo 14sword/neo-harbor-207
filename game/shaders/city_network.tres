@@ -1,0 +1,11 @@
+[gd_resource type="ShaderMaterial" load_steps=2 format=3]
+
+[ext_resource type="Shader" path="res://shaders/city_network.gdshader" id="1"]
+
+[resource]
+shader = ExtResource("1")
+shader_parameter/base_color = Color(0.01, 0.02, 0.05, 1)
+shader_parameter/accent_color = Color(0, 0.85, 1, 0.15)
+shader_parameter/time = 0.0
+shader_parameter/grid_size = 40.0
+shader_parameter/node_count = 8.0

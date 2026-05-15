@@ -1,0 +1,161 @@
+[gd_scene load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://scripts/quest_panel.gd" id="1_script"]
+
+[node name="QuestPanel" type="CanvasLayer" groups=["quest_panel"]]
+layer = 9
+script = ExtResource("1_script")
+
+[node name="BGOverlay" type="ColorRect" parent="."]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+color = Color(0, 0, 0, 0.4)
+mouse_filter = 2
+visible = false
+
+[node name="MainPanel" type="Panel" parent="."]
+anchors_preset = 8
+anchor_left = 0.5
+anchor_top = 0.5
+anchor_right = 0.5
+anchor_bottom = 0.5
+offset_left = -300.0
+offset_top = -300.0
+offset_right = 300.0
+offset_bottom = 300.0
+grow_horizontal = 2
+grow_vertical = 2
+
+[node name="MainContainer" type="VBoxContainer" parent="MainPanel"]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_left = 16.0
+offset_top = 12.0
+offset_right = -16.0
+offset_bottom = -12.0
+grow_horizontal = 2
+grow_vertical = 2
+theme_override_constants/separation = 8
+
+[node name="Header" type="VBoxContainer" parent="MainPanel/MainContainer"]
+layout_mode = 2
+theme_override_constants/separation = 6
+
+[node name="TitleRow" type="HBoxContainer" parent="MainPanel/MainContainer/Header"]
+layout_mode = 2
+theme_override_constants/separation = 12
+
+[node name="TitleLabel" type="Label" parent="MainPanel/MainContainer/Header/TitleRow"]
+layout_mode = 2
+size_flags_horizontal = 3
+text = "◈ 任务终端"
+theme_override_font_sizes/font_size = 22
+
+[node name="CloseButton" type="Button" parent="MainPanel/MainContainer/Header/TitleRow"]
+layout_mode = 2
+custom_minimum_size = Vector2(32, 32)
+text = "✕"
+
+[node name="FilterBar" type="HBoxContainer" parent="MainPanel/MainContainer/Header"]
+layout_mode = 2
+theme_override_constants/separation = 6
+
+[node name="FilterAll" type="Button" parent="MainPanel/MainContainer/Header/FilterBar"]
+layout_mode = 2
+custom_minimum_size = Vector2(60, 28)
+text = "◈ 全部"
+
+[node name="FilterDialogue" type="Button" parent="MainPanel/MainContainer/Header/FilterBar"]
+layout_mode = 2
+custom_minimum_size = Vector2(60, 28)
+text = "💬 对话"
+
+[node name="FilterExploration" type="Button" parent="MainPanel/MainContainer/Header/FilterBar"]
+layout_mode = 2
+custom_minimum_size = Vector2(60, 28)
+text = "🔍 探索"
+
+[node name="FilterCollection" type="Button" parent="MainPanel/MainContainer/Header/FilterBar"]
+layout_mode = 2
+custom_minimum_size = Vector2(60, 28)
+text = "📦 收集"
+
+[node name="FilterDaily" type="Button" parent="MainPanel/MainContainer/Header/FilterBar"]
+layout_mode = 2
+custom_minimum_size = Vector2(60, 28)
+text = "🔄 日常"
+
+[node name="Separator" type="HSeparator" parent="MainPanel/MainContainer"]
+layout_mode = 2
+
+[node name="ScrollContainer" type="ScrollContainer" parent="MainPanel/MainContainer"]
+layout_mode = 2
+size_flags_vertical = 3
+custom_minimum_size = Vector2(0, 380)
+
+[node name="CardPool" type="VBoxContainer" parent="MainPanel/MainContainer/ScrollContainer"]
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_constants/separation = 8
+
+[node name="CardSlot0" type="PanelContainer" parent="MainPanel/MainContainer/ScrollContainer/CardPool"]
+layout_mode = 2
+visible = false
+
+[node name="CardSlot1" type="PanelContainer" parent="MainPanel/MainContainer/ScrollContainer/CardPool"]
+layout_mode = 2
+visible = false
+
+[node name="CardSlot2" type="PanelContainer" parent="MainPanel/MainContainer/ScrollContainer/CardPool"]
+layout_mode = 2
+visible = false
+
+[node name="CardSlot3" type="PanelContainer" parent="MainPanel/MainContainer/ScrollContainer/CardPool"]
+layout_mode = 2
+visible = false
+
+[node name="CardSlot4" type="PanelContainer" parent="MainPanel/MainContainer/ScrollContainer/CardPool"]
+layout_mode = 2
+visible = false
+
+[node name="CardSlot5" type="PanelContainer" parent="MainPanel/MainContainer/ScrollContainer/CardPool"]
+layout_mode = 2
+visible = false
+
+[node name="CardSlot6" type="PanelContainer" parent="MainPanel/MainContainer/ScrollContainer/CardPool"]
+layout_mode = 2
+visible = false
+
+[node name="CardSlot7" type="PanelContainer" parent="MainPanel/MainContainer/ScrollContainer/CardPool"]
+layout_mode = 2
+visible = false
+
+[node name="CardSlot8" type="PanelContainer" parent="MainPanel/MainContainer/ScrollContainer/CardPool"]
+layout_mode = 2
+visible = false
+
+[node name="CardSlot9" type="PanelContainer" parent="MainPanel/MainContainer/ScrollContainer/CardPool"]
+layout_mode = 2
+visible = false
+
+[node name="Footer" type="HBoxContainer" parent="MainPanel/MainContainer"]
+layout_mode = 2
+theme_override_constants/separation = 12
+
+[node name="StatusLabel" type="Label" parent="MainPanel/MainContainer/Footer"]
+layout_mode = 2
+size_flags_horizontal = 3
+text = "◈ DATAWHALE 任务系统"
+theme_override_font_sizes/font_size = 12
+
+[node name="DateLabel" type="Label" parent="MainPanel/MainContainer/Footer"]
+layout_mode = 2
+text = ""
+theme_override_font_sizes/font_size = 12
+horizontal_alignment = 2

@@ -1,0 +1,359 @@
+[gd_scene load_steps=5 format=3 uid="uid://char_select01"]
+
+[ext_resource type="Script" path="res://scripts/character_select.gd" id="1_script"]
+[ext_resource type="ShaderMaterial" path="res://shaders/city_network.tres" id="2_city_network"]
+[ext_resource type="ShaderMaterial" path="res://shaders/scan_line.tres" id="3_scan_line"]
+[ext_resource type="ShaderMaterial" path="res://shaders/glitch.tres" id="4_glitch"]
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_panel"]
+bg_color = Color(0.01, 0.02, 0.04, 0.85)
+border_width_left = 1
+border_width_top = 1
+border_width_right = 1
+border_width_bottom = 1
+border_color = Color(0, 0.85, 1, 0.15)
+corner_radius_top_left = 6
+corner_radius_top_right = 6
+corner_radius_bottom_right = 6
+corner_radius_bottom_left = 6
+
+[node name="CharacterSelect" type="Control"]
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+script = ExtResource("1_script")
+
+[node name="BG" type="ColorRect" parent="."]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+color = Color(0.008, 0.012, 0.025, 1)
+
+[node name="CityNetworkBG" type="ColorRect" parent="."]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+material = ExtResource("2_city_network")
+mouse_filter = 2
+
+[node name="ScanLineOverlay" type="ColorRect" parent="."]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+material = ExtResource("3_scan_line")
+mouse_filter = 2
+
+[node name="GlitchOverlay" type="ColorRect" parent="."]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+material = ExtResource("4_glitch")
+mouse_filter = 2
+visible = false
+
+[node name="MainLayout" type="VBoxContainer" parent="."]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_left = 40.0
+offset_top = 24.0
+offset_right = -40.0
+offset_bottom = -24.0
+grow_horizontal = 2
+grow_vertical = 2
+
+[node name="HeaderArea" type="VBoxContainer" parent="MainLayout"]
+layout_mode = 2
+alignment = 1
+theme_override_constants/separation = 8
+
+[node name="TitleMain" type="Label" parent="MainLayout/HeaderArea"]
+layout_mode = 2
+text = "NEO HARBOR"
+horizontal_alignment = 1
+theme_override_font_sizes/font_size = 48
+theme_override_colors/font_color = Color(0, 0.85, 1, 1)
+
+[node name="TitleSub" type="Label" parent="MainLayout/HeaderArea"]
+layout_mode = 2
+text = "CITY NETWORK"
+horizontal_alignment = 1
+theme_override_font_sizes/font_size = 18
+theme_override_colors/font_color = Color(0, 0.6, 0.8, 0.7)
+
+[node name="ProtocolLabel" type="Label" parent="MainLayout/HeaderArea"]
+layout_mode = 2
+text = "N.H.207 - Identity Synchronization Protocol"
+horizontal_alignment = 1
+theme_override_font_sizes/font_size = 13
+theme_override_colors/font_color = Color(0.4, 0.45, 0.55, 0.8)
+
+[node name="StatusLabel" type="Label" parent="MainLayout/HeaderArea"]
+layout_mode = 2
+text = ""
+horizontal_alignment = 1
+theme_override_font_sizes/font_size = 12
+theme_override_colors/font_color = Color(0, 0.7, 0.9, 0.6)
+
+[node name="ContentArea" type="HBoxContainer" parent="MainLayout"]
+layout_mode = 2
+size_flags_vertical = 3
+theme_override_constants/separation = 16
+
+[node name="LeftPanel" type="Panel" parent="MainLayout/ContentArea"]
+layout_mode = 2
+size_flags_horizontal = 3
+size_flags_stretch_ratio = 1.0
+theme_override_styles/panel = SubResource("StyleBoxFlat_panel")
+
+[node name="LeftContent" type="VBoxContainer" parent="MainLayout/ContentArea/LeftPanel"]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_left = 16.0
+offset_top = 16.0
+offset_right = -16.0
+offset_bottom = -16.0
+grow_horizontal = 2
+grow_vertical = 2
+
+[node name="SectionTitle" type="Label" parent="MainLayout/ContentArea/LeftPanel/LeftContent"]
+layout_mode = 2
+text = "> IDENTITY ARCHIVE"
+theme_override_font_sizes/font_size = 14
+theme_override_colors/font_color = Color(0, 0.85, 1, 0.8)
+
+[node name="ArchiveContent" type="VBoxContainer" parent="MainLayout/ContentArea/LeftPanel/LeftContent"]
+layout_mode = 2
+size_flags_vertical = 3
+theme_override_constants/separation = 6
+
+[node name="ClassTabs" type="HBoxContainer" parent="MainLayout/ContentArea/LeftPanel/LeftContent"]
+layout_mode = 2
+theme_override_constants/separation = 8
+
+[node name="CenterPanel" type="Panel" parent="MainLayout/ContentArea"]
+layout_mode = 2
+size_flags_horizontal = 3
+size_flags_stretch_ratio = 1.3
+theme_override_styles/panel = SubResource("StyleBoxFlat_panel")
+
+[node name="CenterContent" type="VBoxContainer" parent="MainLayout/ContentArea/CenterPanel"]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_left = 16.0
+offset_top = 16.0
+offset_right = -16.0
+offset_bottom = -16.0
+grow_horizontal = 2
+grow_vertical = 2
+alignment = 1
+theme_override_constants/separation = 6
+
+[node name="CharacterDisplay" type="Control" parent="MainLayout/ContentArea/CenterPanel/CenterContent"]
+layout_mode = 2
+custom_minimum_size = Vector2(0, 220)
+size_flags_vertical = 0
+
+[node name="CharBg" type="ColorRect" parent="MainLayout/ContentArea/CenterPanel/CenterContent/CharacterDisplay"]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+color = Color(0, 0, 0, 0.25)
+
+[node name="CharAnim" type="TextureRect" parent="MainLayout/ContentArea/CenterPanel/CenterContent/CharacterDisplay"]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+expand_mode = 2
+stretch_mode = 5
+
+[node name="CodenameLabel" type="Label" parent="MainLayout/ContentArea/CenterPanel/CenterContent"]
+layout_mode = 2
+text = ""
+horizontal_alignment = 1
+theme_override_font_sizes/font_size = 44
+
+[node name="ScanBar" type="ColorRect" parent="MainLayout/ContentArea/CenterPanel/CenterContent"]
+layout_mode = 2
+size_flags_horizontal = 4
+custom_minimum_size = Vector2(200, 2)
+color = Color(0, 0.85, 1, 1)
+
+[node name="ClassCnName" type="Label" parent="MainLayout/ContentArea/CenterPanel/CenterContent"]
+layout_mode = 2
+text = ""
+horizontal_alignment = 1
+theme_override_font_sizes/font_size = 16
+theme_override_colors/font_color = Color(0.7, 0.72, 0.8, 0.8)
+
+[node name="ClassDesc" type="Label" parent="MainLayout/ContentArea/CenterPanel/CenterContent"]
+layout_mode = 2
+text = ""
+horizontal_alignment = 1
+autowrap_mode = 2
+theme_override_font_sizes/font_size = 13
+theme_override_colors/font_color = Color(0.55, 0.58, 0.68, 1)
+
+[node name="ClassTrait" type="HBoxContainer" parent="MainLayout/ContentArea/CenterPanel/CenterContent"]
+layout_mode = 2
+theme_override_constants/separation = 10
+
+[node name="TraitBar" type="ColorRect" parent="MainLayout/ContentArea/CenterPanel/CenterContent/ClassTrait"]
+custom_minimum_size = Vector2(3, 18)
+size_flags_vertical = 4
+
+[node name="TraitLabel" type="Label" parent="MainLayout/ContentArea/CenterPanel/CenterContent/ClassTrait"]
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_font_sizes/font_size = 12
+horizontal_alignment = 1
+
+[node name="RightPanel" type="Panel" parent="MainLayout/ContentArea"]
+layout_mode = 2
+size_flags_horizontal = 3
+size_flags_stretch_ratio = 1.0
+theme_override_styles/panel = SubResource("StyleBoxFlat_panel")
+
+[node name="RightContent" type="VBoxContainer" parent="MainLayout/ContentArea/RightPanel"]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_left = 16.0
+offset_top = 16.0
+offset_right = -16.0
+offset_bottom = -16.0
+grow_horizontal = 2
+grow_vertical = 2
+theme_override_constants/separation = 8
+
+[node name="SectionTitle" type="Label" parent="MainLayout/ContentArea/RightPanel/RightContent"]
+layout_mode = 2
+text = "> NETWORK DATA"
+theme_override_font_sizes/font_size = 14
+theme_override_colors/font_color = Color(0, 0.85, 1, 0.8)
+
+[node name="StatsBox" type="VBoxContainer" parent="MainLayout/ContentArea/RightPanel/RightContent"]
+layout_mode = 2
+size_flags_vertical = 3
+theme_override_constants/separation = 4
+
+[node name="Sep1" type="HSeparator" parent="MainLayout/ContentArea/RightPanel/RightContent"]
+layout_mode = 2
+
+[node name="SkillsTitle" type="Label" parent="MainLayout/ContentArea/RightPanel/RightContent"]
+layout_mode = 2
+text = "SKILLS"
+theme_override_font_sizes/font_size = 12
+theme_override_colors/font_color = Color(0.5, 0.53, 0.63, 0.7)
+
+[node name="SkillsBox" type="VBoxContainer" parent="MainLayout/ContentArea/RightPanel/RightContent"]
+layout_mode = 2
+theme_override_constants/separation = 3
+
+[node name="Sep2" type="HSeparator" parent="MainLayout/ContentArea/RightPanel/RightContent"]
+layout_mode = 2
+
+[node name="AffinityTitle" type="Label" parent="MainLayout/ContentArea/RightPanel/RightContent"]
+layout_mode = 2
+text = "INITIAL LINK"
+theme_override_font_sizes/font_size = 12
+theme_override_colors/font_color = Color(0.5, 0.53, 0.63, 0.7)
+
+[node name="AffinityBox" type="VBoxContainer" parent="MainLayout/ContentArea/RightPanel/RightContent"]
+layout_mode = 2
+theme_override_constants/separation = 3
+
+[node name="FooterArea" type="VBoxContainer" parent="MainLayout"]
+layout_mode = 2
+alignment = 1
+theme_override_constants/separation = 6
+
+[node name="InfoStream" type="Label" parent="MainLayout/FooterArea"]
+layout_mode = 2
+text = ""
+horizontal_alignment = 1
+theme_override_font_sizes/font_size = 11
+theme_override_colors/font_color = Color(0.2, 0.8, 0.4, 0.7)
+
+[node name="InputRow" type="HBoxContainer" parent="MainLayout/FooterArea"]
+layout_mode = 2
+alignment = 1
+theme_override_constants/separation = 12
+
+[node name="NameInput" type="LineEdit" parent="MainLayout/FooterArea/InputRow"]
+layout_mode = 2
+custom_minimum_size = Vector2(260, 38)
+placeholder_text = "Enter Codename..."
+
+[node name="ConfirmBtn" type="Button" parent="MainLayout/FooterArea/InputRow"]
+layout_mode = 2
+custom_minimum_size = Vector2(140, 38)
+text = "SYNC ->"
+
+[node name="HintLabel" type="Label" parent="MainLayout/FooterArea"]
+layout_mode = 2
+text = "[ ← → ] Switch Protocol    [ Enter ] Confirm Sync"
+horizontal_alignment = 1
+theme_override_font_sizes/font_size = 11
+theme_override_colors/font_color = Color(0.35, 0.38, 0.48, 1)
+
+[node name="StyleIndicator" type="Label" parent="."]
+layout_mode = 1
+anchors_preset = 9
+anchor_left = 1.0
+anchor_top = 1.0
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_left = -300.0
+offset_top = -24.0
+offset_right = -16.0
+offset_bottom = -8.0
+grow_horizontal = 0
+grow_vertical = 0
+text = "[ F5 ] 写实赛博 REALISTIC"
+horizontal_alignment = 2
+theme_override_font_sizes/font_size = 11
+theme_override_colors/font_color = Color(0.35, 0.38, 0.48, 1)
+
+[node name="AnomalyLabel" type="Label" parent="."]
+layout_mode = 1
+anchors_preset = 5
+anchor_left = 0.5
+anchor_right = 0.5
+offset_left = -200.0
+offset_right = 200.0
+offset_top = 80.0
+offset_bottom = 110.0
+grow_horizontal = 2
+text = ""
+horizontal_alignment = 1
+theme_override_font_sizes/font_size = 16
+theme_override_colors/font_color = Color(0.8, 0.1, 0.9, 1)
+visible = false

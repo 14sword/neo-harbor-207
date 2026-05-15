@@ -1,0 +1,250 @@
+[gd_scene format=3 uid="uid://c1ywhl48g4acm"]
+
+[ext_resource type="Script" uid="uid://canbt6renyrqe" path="res://scripts/street.gd" id="1"]
+[ext_resource type="Texture2D" uid="uid://dlajmcayy5kew" path="res://assets/backgrounds/street/白天.png" id="2_bg"]
+[ext_resource type="PackedScene" uid="uid://player123" path="res://scenes/player.tscn" id="3_player"]
+[ext_resource type="PackedScene" path="res://scenes/dialogue_ui.tscn" id="4_dialogue"]
+[ext_resource type="PackedScene" path="res://scenes/interaction_prompt.tscn" id="5_prompt"]
+[ext_resource type="PackedScene" path="res://scenes/quest_panel.tscn" id="6_quest"]
+[ext_resource type="PackedScene" uid="uid://npc123" path="res://scenes/npc.tscn" id="7_npc"]
+[ext_resource type="PackedScene" path="res://scenes/character_panel.tscn" id="8_char_panel"]
+
+[sub_resource type="RectangleShape2D" id="WallTop_shape"]
+size = Vector2(1672, 10)
+
+[sub_resource type="RectangleShape2D" id="WallBottom_shape"]
+size = Vector2(1672, 10)
+
+[sub_resource type="RectangleShape2D" id="WallLeft_shape"]
+size = Vector2(10, 941)
+
+[sub_resource type="RectangleShape2D" id="WallRight_shape"]
+size = Vector2(10, 941)
+
+[sub_resource type="RectangleShape2D" id="Building_LeftTop1_shape"]
+size = Vector2(309, 137)
+
+[sub_resource type="RectangleShape2D" id="Building_LeftTop2_shape"]
+size = Vector2(129, 295)
+
+[sub_resource type="RectangleShape2D" id="Building_MidTop_shape"]
+size = Vector2(928, 126)
+
+[sub_resource type="RectangleShape2D" id="Building_RightTop1_shape"]
+size = Vector2(142.5, 112)
+
+[sub_resource type="RectangleShape2D" id="Building_RightTop2_shape"]
+size = Vector2(334, 371)
+
+[sub_resource type="RectangleShape2D" id="Building_LeftBottom_shape"]
+size = Vector2(124, 154)
+
+[sub_resource type="RectangleShape2D" id="Building_RightBottom_shape"]
+size = Vector2(418, 206)
+
+[sub_resource type="RectangleShape2D" id="Planter1_shape"]
+size = Vector2(252, 40)
+
+[sub_resource type="RectangleShape2D" id="Planter2_shape"]
+size = Vector2(214, 100)
+
+[sub_resource type="RectangleShape2D" id="VendingMachine_shape"]
+size = Vector2(184, 199)
+
+[sub_resource type="RectangleShape2D" id="BillboardBase_shape"]
+size = Vector2(88, 64)
+
+[sub_resource type="RectangleShape2D" id="RectangleShape2D_5m0si"]
+size = Vector2(27, 90)
+
+[sub_resource type="CircleShape2D" id="ExitZone_shape"]
+radius = 50.0
+
+[sub_resource type="RectangleShape2D" id="DatawhaleEntrance_shape"]
+size = Vector2(82, 100)
+
+[sub_resource type="RectangleShape2D" id="ApartmentEntrance_shape"]
+size = Vector2(60, 80)
+
+[node name="Street" type="Node2D" unique_id=1620714523]
+script = ExtResource("1")
+
+[node name="Background" type="Sprite2D" parent="." unique_id=238155651 groups=["background"]]
+position = Vector2(832, 439)
+texture = ExtResource("2_bg")
+
+[node name="Walls" type="Node2D" parent="." unique_id=1295578396]
+
+[node name="WallTop" type="StaticBody2D" parent="Walls" unique_id=2114129704]
+position = Vector2(836, 5)
+collision_layer = 2
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="Walls/WallTop" unique_id=1068531748]
+shape = SubResource("WallTop_shape")
+
+[node name="WallBottom" type="StaticBody2D" parent="Walls" unique_id=1504825556]
+position = Vector2(836, 936)
+collision_layer = 2
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="Walls/WallBottom" unique_id=1627531570]
+shape = SubResource("WallBottom_shape")
+
+[node name="WallLeft" type="StaticBody2D" parent="Walls" unique_id=1246386427]
+position = Vector2(5, 470)
+collision_layer = 2
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="Walls/WallLeft" unique_id=1059766597]
+shape = SubResource("WallLeft_shape")
+
+[node name="WallRight" type="StaticBody2D" parent="Walls" unique_id=1675185823]
+position = Vector2(1667, 470)
+collision_layer = 2
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="Walls/WallRight" unique_id=667423466]
+shape = SubResource("WallRight_shape")
+
+[node name="Building_LeftTop1" type="StaticBody2D" parent="Walls" unique_id=747065008]
+position = Vector2(200, 160)
+collision_layer = 2
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="Walls/Building_LeftTop1" unique_id=2017516111]
+position = Vector2(35.5, -23)
+shape = SubResource("Building_LeftTop1_shape")
+
+[node name="Building_LeftTop2" type="StaticBody2D" parent="Walls" unique_id=976524131]
+position = Vector2(500, 180)
+collision_layer = 2
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="Walls/Building_LeftTop2" unique_id=1242327783]
+position = Vector2(-203.5, 172.5)
+shape = SubResource("Building_LeftTop2_shape")
+
+[node name="Building_MidTop" type="StaticBody2D" parent="Walls" unique_id=1551191815]
+position = Vector2(836, 150)
+collision_layer = 2
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="Walls/Building_MidTop" unique_id=1953131366]
+position = Vector2(99, -19)
+shape = SubResource("Building_MidTop_shape")
+
+[node name="Building_RightTop1" type="StaticBody2D" parent="Walls" unique_id=1968292128]
+position = Vector2(1200, 170)
+collision_layer = 2
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="Walls/Building_RightTop1" unique_id=1090471797]
+position = Vector2(-678.75, 585)
+shape = SubResource("Building_RightTop1_shape")
+
+[node name="Building_RightTop2" type="StaticBody2D" parent="Walls" unique_id=1436143655]
+position = Vector2(1500, 190)
+collision_layer = 2
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="Walls/Building_RightTop2" unique_id=717255569]
+position = Vector2(-88, 65.5)
+shape = SubResource("Building_RightTop2_shape")
+
+[node name="Building_LeftBottom" type="StaticBody2D" parent="Walls" unique_id=131603551]
+position = Vector2(180, 780)
+collision_layer = 2
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="Walls/Building_LeftBottom" unique_id=1883067555]
+position = Vector2(-58, 7)
+shape = SubResource("Building_LeftBottom_shape")
+
+[node name="Building_RightBottom" type="StaticBody2D" parent="Walls" unique_id=157522698]
+position = Vector2(1400, 760)
+collision_layer = 2
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="Walls/Building_RightBottom" unique_id=61664997]
+position = Vector2(-18, -23)
+shape = SubResource("Building_RightBottom_shape")
+
+[node name="Planter1" type="StaticBody2D" parent="Walls" unique_id=303181002]
+position = Vector2(700, 500)
+collision_layer = 2
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="Walls/Planter1" unique_id=2036520421]
+position = Vector2(-380, 220)
+shape = SubResource("Planter1_shape")
+
+[node name="Planter2" type="StaticBody2D" parent="Walls" unique_id=2080261202]
+position = Vector2(1000, 500)
+collision_layer = 2
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="Walls/Planter2" unique_id=921088391]
+position = Vector2(61, 242)
+shape = SubResource("Planter2_shape")
+
+[node name="VendingMachine" type="StaticBody2D" parent="Walls" unique_id=54991636]
+position = Vector2(450, 430)
+collision_layer = 2
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="Walls/VendingMachine" unique_id=730097788]
+position = Vector2(-294, 10)
+shape = SubResource("VendingMachine_shape")
+
+[node name="BillboardBase" type="StaticBody2D" parent="Walls" unique_id=245801630]
+position = Vector2(836, 80)
+collision_layer = 2
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="Walls/BillboardBase" unique_id=1610804651]
+position = Vector2(256, 144)
+shape = SubResource("BillboardBase_shape")
+
+[node name="StaticBody2D" type="StaticBody2D" parent="Walls" unique_id=942808475]
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="Walls/StaticBody2D" unique_id=1883803296]
+position = Vector2(1256, 488)
+shape = SubResource("RectangleShape2D_5m0si")
+
+[node name="PlayerSpawn" type="Marker2D" parent="." unique_id=1373803589]
+position = Vector2(836, 700)
+
+[node name="Player" parent="." unique_id=335169762 instance=ExtResource("3_player")]
+position = Vector2(836, 700)
+
+[node name="DialogueUI" parent="." unique_id=1205182737 instance=ExtResource("4_dialogue")]
+
+[node name="InteractionPrompt" parent="." unique_id=900256291 instance=ExtResource("5_prompt")]
+
+[node name="QuestPanel" parent="." unique_id=1063516587 instance=ExtResource("6_quest")]
+
+[node name="NPCs" type="Node" parent="." unique_id=564131964]
+
+[node name="NPC_ChenXi" parent="NPCs" unique_id=681059782 instance=ExtResource("7_npc")]
+position = Vector2(1400, 514)
+npc_name = "chen_xi"
+npc_title = "咖啡店老板"
+
+[node name="NPC_ZhaoLin" parent="NPCs" unique_id=290119973 instance=ExtResource("7_npc")]
+position = Vector2(50, 896)
+npc_name = "zhao_lin"
+npc_title = "黑市信息贩子"
+
+[node name="NPC_LiuFeng" parent="NPCs" unique_id=510357049 instance=ExtResource("7_npc")]
+position = Vector2(600, 400)
+npc_name = "liu_feng"
+npc_title = "赛博义体技师"
+
+[node name="CharacterPanel" parent="." unique_id=699049366 instance=ExtResource("8_char_panel")]
+
+[node name="ExitZone" type="Area2D" parent="." unique_id=1742333118]
+position = Vector2(836, 890)
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="ExitZone" unique_id=545963965]
+position = Vector2(561, 6)
+shape = SubResource("ExitZone_shape")
+
+[node name="DatawhaleEntrance" type="Area2D" parent="." unique_id=48020961]
+position = Vector2(836, 340)
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="DatawhaleEntrance" unique_id=2104766649]
+position = Vector2(329, 141)
+shape = SubResource("DatawhaleEntrance_shape")
+
+[node name="ApartmentEntrance" type="Area2D" parent="." unique_id=1438842051]
+position = Vector2(1100, 700)
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="ApartmentEntrance" unique_id=412313450]
+position = Vector2(532, -396)
+shape = SubResource("ApartmentEntrance_shape")

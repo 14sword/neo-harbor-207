@@ -1,0 +1,122 @@
+[gd_scene load_steps=22 format=3 uid="uid://dcpxxssblm14v"]
+
+[ext_resource type="Script" uid="uid://c7hnt4i1hucd3" path="res://scripts/PET/fox.gd" id="1_ufccv"]
+[ext_resource type="Texture2D" path="res://assets/characters/fox/idle/player-idle-1.png" id="idle1"]
+[ext_resource type="Texture2D" path="res://assets/characters/fox/idle/player-idle-2.png" id="idle2"]
+[ext_resource type="Texture2D" path="res://assets/characters/fox/idle/player-idle-3.png" id="idle3"]
+[ext_resource type="Texture2D" path="res://assets/characters/fox/idle/player-idle-4.png" id="idle4"]
+[ext_resource type="Texture2D" path="res://assets/characters/fox/run/player-run-1.png" id="run1"]
+[ext_resource type="Texture2D" path="res://assets/characters/fox/run/player-run-2.png" id="run2"]
+[ext_resource type="Texture2D" path="res://assets/characters/fox/run/player-run-3.png" id="run3"]
+[ext_resource type="Texture2D" path="res://assets/characters/fox/run/player-run-4.png" id="run4"]
+[ext_resource type="Texture2D" path="res://assets/characters/fox/run/player-run-5.png" id="run5"]
+[ext_resource type="Texture2D" path="res://assets/characters/fox/run/player-run-6.png" id="run6"]
+[ext_resource type="Texture2D" path="res://assets/characters/fox/jump/player-jump-1.png" id="jump1"]
+[ext_resource type="Texture2D" path="res://assets/characters/fox/jump/player-jump-2.png" id="jump2"]
+[ext_resource type="Texture2D" path="res://assets/characters/fox/crouch/player-crouch-1.png" id="crouch1"]
+[ext_resource type="Texture2D" path="res://assets/characters/fox/crouch/player-crouch-2.png" id="crouch2"]
+[ext_resource type="Texture2D" path="res://assets/characters/fox/roll/Roll1.png" id="roll1"]
+[ext_resource type="Texture2D" path="res://assets/characters/fox/roll/Roll2.png" id="roll2"]
+[ext_resource type="Texture2D" path="res://assets/characters/fox/roll/Roll3.png" id="roll3"]
+[ext_resource type="Texture2D" path="res://assets/characters/fox/roll/Roll4.png" id="roll4"]
+
+[sub_resource type="RectangleShape2D" id="RectangleShape2D_fox"]
+size = Vector2(20, 16)
+
+[sub_resource type="SpriteFrames" id="SpriteFrames_fox"]
+animations = [{
+"frames": [{
+"duration": 1.0,
+"texture": ExtResource("idle1")
+}, {
+"duration": 1.0,
+"texture": ExtResource("idle2")
+}, {
+"duration": 1.0,
+"texture": ExtResource("idle3")
+}, {
+"duration": 1.0,
+"texture": ExtResource("idle4")
+}],
+"loop": true,
+"name": &"idle",
+"speed": 8.0
+}, {
+"frames": [{
+"duration": 1.0,
+"texture": ExtResource("run1")
+}, {
+"duration": 1.0,
+"texture": ExtResource("run2")
+}, {
+"duration": 1.0,
+"texture": ExtResource("run3")
+}, {
+"duration": 1.0,
+"texture": ExtResource("run4")
+}, {
+"duration": 1.0,
+"texture": ExtResource("run5")
+}, {
+"duration": 1.0,
+"texture": ExtResource("run6")
+}],
+"loop": true,
+"name": &"run",
+"speed": 12.0
+}, {
+"frames": [{
+"duration": 1.0,
+"texture": ExtResource("jump1")
+}, {
+"duration": 1.0,
+"texture": ExtResource("jump2")
+}],
+"loop": false,
+"name": &"jump",
+"speed": 8.0
+}, {
+"frames": [{
+"duration": 1.0,
+"texture": ExtResource("crouch1")
+}, {
+"duration": 1.0,
+"texture": ExtResource("crouch2")
+}],
+"loop": false,
+"name": &"crouch",
+"speed": 6.0
+}, {
+"frames": [{
+"duration": 1.0,
+"texture": ExtResource("roll1")
+}, {
+"duration": 1.0,
+"texture": ExtResource("roll2")
+}, {
+"duration": 1.0,
+"texture": ExtResource("roll3")
+}, {
+"duration": 1.0,
+"texture": ExtResource("roll4")
+}],
+"loop": false,
+"name": &"roll",
+"speed": 10.0
+}]
+
+[node name="fox" type="CharacterBody2D"]
+collision_layer = 4
+collision_mask = 2
+script = ExtResource("1_ufccv")
+
+[node name="AnimatedSprite2D" type="AnimatedSprite2D" parent="."]
+sprite_frames = SubResource("SpriteFrames_fox")
+animation = &"idle"
+autoplay = "idle"
+scale = Vector2(1.2, 1.2)
+texture_filter = 0
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="."]
+position = Vector2(0, 8)
+shape = SubResource("RectangleShape2D_fox")

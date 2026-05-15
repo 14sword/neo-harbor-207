@@ -1,0 +1,384 @@
+[gd_scene load_steps=9 format=3 uid="uid://dialogue_new"]
+
+[ext_resource type="Script" path="res://scripts/dialogue_ui.gd" id="1"]
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_panel"]
+bg_color = Color(0.059, 0.039, 0.122, 0.92)
+border_width_left = 4
+border_width_top = 4
+border_width_right = 4
+border_width_bottom = 4
+border_color = Color(0, 0.94, 1, 0.7)
+corner_radius_top_left = 16
+corner_radius_top_right = 16
+corner_radius_bottom_left = 16
+corner_radius_bottom_right = 16
+shadow_color = Color(0, 0.94, 1, 0.3)
+shadow_size = 8
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_avatar_bg"]
+bg_color = Color(0.165, 0.122, 0.239, 1)
+border_width_left = 3
+border_width_top = 3
+border_width_right = 3
+border_width_bottom = 3
+border_color = Color(0, 0.94, 1, 0.8)
+corner_radius_top_left = 12
+corner_radius_top_right = 12
+corner_radius_bottom_left = 12
+corner_radius_bottom_right = 12
+shadow_color = Color(0, 0.94, 1, 0.4)
+shadow_size = 6
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_input"]
+bg_color = Color(0.08, 0.08, 0.15, 0.9)
+border_width_left = 2
+border_width_top = 2
+border_width_right = 2
+border_width_bottom = 2
+border_color = Color(0, 0.94, 1, 0.4)
+corner_radius_top_left = 10
+corner_radius_top_right = 10
+corner_radius_bottom_left = 10
+corner_radius_bottom_right = 10
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_button_normal"]
+bg_color = Color(0.227, 0.357, 0.627, 1)
+border_width_left = 2
+border_width_top = 2
+border_width_right = 2
+border_width_bottom = 2
+border_color = Color(0, 0.94, 1, 0.5)
+corner_radius_top_left = 10
+corner_radius_top_right = 10
+corner_radius_bottom_left = 10
+corner_radius_bottom_right = 10
+shadow_color = Color(0, 0.94, 1, 0.2)
+shadow_size = 4
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_button_hover"]
+bg_color = Color(0.29, 0.42, 0.69, 1)
+border_width_left = 2
+border_width_top = 2
+border_width_right = 2
+border_width_bottom = 2
+border_color = Color(0, 0.94, 1, 0.9)
+corner_radius_top_left = 10
+corner_radius_top_right = 10
+corner_radius_bottom_left = 10
+corner_radius_bottom_right = 10
+shadow_color = Color(0, 0.94, 1, 0.5)
+shadow_size = 8
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_button_pressed"]
+bg_color = Color(0.18, 0.28, 0.5, 1)
+border_width_left = 1
+border_width_top = 1
+border_width_right = 1
+border_width_bottom = 1
+border_color = Color(0, 0.94, 1, 0.4)
+corner_radius_top_left = 10
+corner_radius_top_right = 10
+corner_radius_bottom_left = 10
+corner_radius_bottom_right = 10
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_history"]
+bg_color = Color(0.14, 0.14, 0.24, 0.85)
+border_width_left = 2
+border_width_top = 2
+border_width_right = 2
+border_width_bottom = 2
+border_color = Color(0.4, 0.3, 0.6, 0.5)
+corner_radius_top_left = 8
+corner_radius_top_right = 8
+corner_radius_bottom_left = 8
+corner_radius_bottom_right = 8
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_close_button"]
+bg_color = Color(0.667, 0.29, 0.29, 1)
+border_width_left = 2
+border_width_top = 2
+border_width_right = 2
+border_width_bottom = 2
+border_color = Color(1, 0.3, 0.3, 0.6)
+corner_radius_top_left = 10
+corner_radius_top_right = 10
+corner_radius_bottom_left = 10
+corner_radius_bottom_right = 10
+shadow_color = Color(1, 0, 0, 0.3)
+shadow_size = 4
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_close_hover"]
+bg_color = Color(0.8, 0.333, 0.333, 1)
+border_width_left = 2
+border_width_top = 2
+border_width_right = 2
+border_width_bottom = 2
+border_color = Color(1, 0.5, 0.5, 0.9)
+corner_radius_top_left = 10
+corner_radius_top_right = 10
+corner_radius_bottom_left = 10
+corner_radius_bottom_right = 10
+shadow_color = Color(1, 0, 0, 0.6)
+shadow_size = 8
+
+[node name="DialogueUI" type="CanvasLayer"]
+script = ExtResource("1")
+layer = 10
+groups = ["dialogue_ui"]
+visible = false
+
+[node name="Panel" type="Panel" parent="."]
+anchors_preset = 15
+anchor_left = 0.0
+anchor_top = 0.65
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_left = 30.0
+offset_top = 0.0
+offset_right = -30.0
+offset_bottom = -20.0
+grow_horizontal = 2
+grow_vertical = 2
+theme_override_styles/panel = SubResource("StyleBoxFlat_panel")
+
+[node name="AvatarContainer" type="Panel" parent="Panel"]
+layout_mode = 1
+anchors_preset = 1
+anchor_left = 0.0
+anchor_top = 0.0
+anchor_right = 0.0
+anchor_bottom = 1.0
+offset_left = 20.0
+offset_top = 15.0
+offset_right = 130.0
+offset_bottom = -15.0
+grow_vertical = 2
+theme_override_styles/panel = SubResource("StyleBoxFlat_avatar_bg")
+
+[node name="AvatarTexture" type="TextureRect" parent="Panel/AvatarContainer"]
+layout_mode = 1
+anchors_preset = 10
+anchor_left = 0.0
+anchor_top = 0.0
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_left = 8.0
+offset_top = 8.0
+offset_right = -8.0
+offset_bottom = -8.0
+grow_horizontal = 2
+grow_vertical = 2
+expand_mode = 1
+stretch_mode = 5
+
+[node name="NameLabel" type="Label" parent="Panel"]
+layout_mode = 1
+anchors_preset = 1
+anchor_left = 0.0
+anchor_top = 0.0
+anchor_right = 1.0
+anchor_bottom = 0.0
+offset_left = 150.0
+offset_top = 18.0
+offset_right = -200.0
+offset_bottom = 48.0
+grow_horizontal = 2
+text = "张三"
+theme_override_colors/font_color = Color(0.306, 0.804, 0.769, 1)
+theme_override_font_sizes/font_size = 26
+bold = true
+
+[node name="TitleLabel" type="Label" parent="Panel"]
+layout_mode = 1
+anchors_preset = 1
+anchor_left = 0.0
+anchor_top = 0.0
+anchor_right = 1.0
+anchor_bottom = 0.0
+offset_left = 150.0
+offset_top = 50.0
+offset_right = -200.0
+offset_bottom = 74.0
+grow_horizontal = 2
+text = "Python工程师"
+theme_override_colors/font_color = Color(0.667, 0.667, 0.8, 1)
+theme_override_font_sizes/font_size = 16
+
+[node name="AffinityContainer" type="HBoxContainer" parent="Panel"]
+layout_mode = 1
+anchors_preset = 2
+anchor_left = 1.0
+anchor_top = 0.0
+anchor_right = 1.0
+anchor_bottom = 0.0
+offset_left = -200.0
+offset_top = 15.0
+offset_right = -20.0
+offset_bottom = 45.0
+grow_horizontal = 0
+theme_override_constants/separation = 8
+
+[node name="Hearts" type="Label" parent="Panel/AffinityContainer"]
+layout_mode = 2
+text = "❤️❤️❤️☆☆"
+theme_override_colors/font_color = Color(1, 0.5, 0.5, 1)
+theme_override_font_sizes/font_size = 20
+
+[node name="DialogueText" type="RichTextLabel" parent="Panel"]
+layout_mode = 1
+anchors_preset = 10
+anchor_left = 0.0
+anchor_top = 0.0
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_left = 150.0
+offset_top = 82.0
+offset_right = -20.0
+offset_bottom = -65.0
+grow_horizontal = 2
+grow_vertical = 2
+text = ""
+theme_override_colors/default_color = Color(0.91, 0.91, 0.91, 1)
+theme_override_font_sizes/font_size = 18
+bbcode_enabled = true
+scroll_following = true
+
+[node name="InputContainer" type="HBoxContainer" parent="Panel"]
+layout_mode = 1
+anchors_preset = 12
+anchor_left = 0.0
+anchor_top = 1.0
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_left = 140.0
+offset_top = -55.0
+offset_right = -20.0
+offset_bottom = -10.0
+grow_horizontal = 2
+grow_vertical = 0
+theme_override_constants/separation = 10
+
+[node name="PlayerInput" type="LineEdit" parent="Panel/InputContainer"]
+layout_mode = 2
+size_flags_horizontal = 3
+placeholder_text = "输入你想说的话..."
+theme_override_colors/font_color = Color(1, 1, 1, 1)
+theme_override_colors/placeholder_color = Color(0.5, 0.5, 0.6, 1)
+theme_override_styles/normal = SubResource("StyleBoxFlat_input")
+theme_override_font_sizes/font_size = 17
+
+[node name="SendButton" type="Button" parent="Panel/InputContainer"]
+custom_minimum_size = Vector2(90, 48)
+layout_mode = 2
+text = "发送"
+theme_override_colors/font_color = Color(1, 1, 1, 1)
+theme_override_styles/normal = SubResource("StyleBoxFlat_button_normal")
+theme_override_styles/hover = SubResource("StyleBoxFlat_button_hover")
+theme_override_styles/pressed = SubResource("StyleBoxFlat_button_pressed")
+theme_override_font_sizes/font_size = 17
+
+[node name="HistoryButton" type="Button" parent="Panel/InputContainer"]
+custom_minimum_size = Vector2(90, 48)
+layout_mode = 2
+text = "历史"
+theme_override_colors/font_color = Color(0.85, 0.85, 0.95, 1)
+theme_override_styles/normal = SubResource("StyleBoxFlat_history")
+theme_override_styles/hover = SubResource("StyleBoxFlat_button_hover")
+theme_override_font_sizes/font_size = 17
+
+[node name="CloseButton" type="Button" parent="Panel"]
+custom_minimum_size = Vector2(45, 45)
+layout_mode = 1
+anchors_preset = 2
+anchor_left = 1.0
+anchor_top = 0.0
+anchor_right = 1.0
+anchor_bottom = 0.0
+offset_left = -55.0
+offset_top = 12.0
+offset_right = -20.0
+offset_bottom = 47.0
+grow_horizontal = 0
+text = "×"
+theme_override_colors/font_color = Color(0.9, 0.9, 0.9, 1)
+theme_override_styles/normal = SubResource("StyleBoxFlat_close_button")
+theme_override_styles/hover = SubResource("StyleBoxFlat_close_hover")
+theme_override_font_sizes/font_size = 26
+
+[node name="HistoryPanel" type="Panel" parent="."]
+visible = false
+anchors_preset = 15
+anchor_left = 0.0
+anchor_top = 0.0
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_left = 60.0
+offset_top = 60.0
+offset_right = -60.0
+offset_bottom = -60.0
+grow_horizontal = 2
+grow_vertical = 2
+theme_override_styles/panel = SubResource("StyleBoxFlat_panel")
+
+[node name="HistoryTitle" type="Label" parent="HistoryPanel"]
+layout_mode = 1
+anchors_preset = 10
+anchor_left = 0.0
+anchor_top = 0.0
+anchor_right = 1.0
+anchor_bottom = 0.0
+offset_left = 20.0
+offset_top = 15.0
+offset_right = -20.0
+offset_bottom = 50.0
+grow_horizontal = 2
+text = "对话历史"
+horizontal_alignment = 1
+theme_override_colors/font_color = Color(1, 1, 1, 1)
+theme_override_font_sizes/font_size = 24
+bold = true
+
+[node name="HistoryScroll" type="ScrollContainer" parent="HistoryPanel"]
+layout_mode = 1
+anchors_preset = 10
+anchor_left = 0.0
+anchor_top = 0.0
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_left = 20.0
+offset_top = 60.0
+offset_right = -20.0
+offset_bottom = -70.0
+grow_horizontal = 2
+grow_vertical = 2
+theme_override_styles/scrollbar = null
+
+[node name="HistoryText" type="RichTextLabel" parent="HistoryPanel/HistoryScroll"]
+layout_mode = 2
+text = ""
+fit_content = true
+size_flags_vertical = 3
+theme_override_colors/default_color = Color(0.9, 0.9, 0.9, 1)
+theme_override_font_sizes/font_size = 16
+bbcode_enabled = true
+
+[node name="CloseHistoryButton" type="Button" parent="HistoryPanel"]
+custom_minimum_size = Vector2(130, 55)
+layout_mode = 2
+anchors_preset = 7
+anchor_left = 0.5
+anchor_top = 1.0
+anchor_right = 0.5
+anchor_bottom = 1.0
+offset_left = -65.0
+offset_top = -55.0
+offset_right = 65.0
+offset_bottom = -10.0
+grow_horizontal = 2
+grow_vertical = 0
+text = "关闭"
+theme_override_colors/font_color = Color(1, 1, 1, 1)
+theme_override_styles/normal = SubResource("StyleBoxFlat_button_normal")
+theme_override_styles/hover = SubResource("StyleBoxFlat_button_hover")
+theme_override_font_sizes/font_size = 18
