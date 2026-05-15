@@ -1,0 +1,14 @@
+# macOS
+.DS_Store
+
+# Python
+__pycache__/
+*.pyc
+
+# Backend secrets & runtime data
+backend/.env
+backend/data/
+
+# Trae AI internals
+.trae/specs/
+.trae/documents/
