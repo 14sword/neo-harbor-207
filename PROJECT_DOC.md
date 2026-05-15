@@ -1,8 +1,8 @@
-# 赛博小镇 (Datawhale Town) 项目完整文档
+# 新港·207 (Neo Harbor 207) 项目完整文档
 
 ## 一、项目概览
 
-- **项目名称**: 赛博小镇 (Datawhale Town)
+- **项目名称**: 新港·207 (Neo Harbor 207)
 - **游戏类型**: 2D 赛博朋克风格 AI 小镇社交游戏（含角色养成/剧情/战斗）
 - **游戏引擎**: Godot 4.6 (GL Compatibility 渲染器)
 - **前端语言**: GDScript
@@ -277,7 +277,7 @@ quest_panel★(对象池架构), log_panel, dialogue_ui, forum_ui, tv_overlay, b
 | `glitch.gdshader` ★★ | **故障/异常效果**（像素偏移+RGB通道分离+亮色横条，支持uniform强度参数） |
 | `glitch.tres` ★★ | 故障着色器材质 |
 
-**着色器位置**: `helloagents-ai-town/datawhale-town/shaders/`（非assets子目录）
+**着色器位置**: `game/shaders/`（非assets子目录）
 
 **着色器技术要点及性能优化**：
 - `city_network.gdshader`：使用 `hash21` 伪随机函数生成网络节点位置，`sin/cos+time` 驱动节点浮动动画，向量投影法绘制节点连线。**（已优化）** node_count默认8→3，循环上限20+6→5+3，像素运算量降低80%+
@@ -409,11 +409,11 @@ quest_panel★(对象池架构), log_panel, dialogue_ui, forum_ui, tv_overlay, b
 ## 十、项目目录结构（UPDATED）
 
 ```
-赛博小镇/
+新港·207/
 ├── .trae/
 │   ├── rules/git-commit-message.md
 │   └── specs/
-├── 赛博小镇项目文档.md                    # 本文件
+├── 新港·207项目文档.md                    # 本文件
 ├── tools/
 │   └── generate_characters.py ★            # 角色立绘AI生成+精灵图裁切脚本
 ├── backend/
@@ -432,7 +432,7 @@ quest_panel★(对象池架构), log_panel, dialogue_ui, forum_ui, tv_overlay, b
 │   ├── data/
 │   ├── .env
 │   └── requirements.txt
-└── helloagents-ai-town/datawhale-town/
+└── game/
     ├── project.godot                          # 主场景=character_select
     ├── scenes/
     │   ├── character_select.tscn ★             # 主场景
@@ -548,14 +548,14 @@ quest_panel★(对象池架构), log_panel, dialogue_ui, forum_ui, tv_overlay, b
 ## 十四、开发规范提示词（UPDATED）
 
 ```
-你是一个Godot 4.6游戏开发专家，正在维护一个名为"赛博小镇(Datawhale Town)"的2D赛博朋克风格AI小镇社交游戏。
+你是一个Godot 4.6游戏开发专家，正在维护一个名为"新港·207(Neo Harbor 207)"的2D赛博朋克风格AI小镇社交游戏。
 ## 项目基本信息
 - 游戏引擎: Godot 4.6 (GL Compatibility渲染器)
 - 前端语言: GDScript
 - 后端语言: Python (FastAPI)
 - 分辨率: 1280×720
-- 项目路径: /Users/xieqing/Desktop/后期/ai agent/赛博小镇
-- 游戏主目录: helloagents-ai-town/datawhale-town/
+- 项目路径: /Users/xieqing/Desktop/后期/ai agent/新港·207
+- 游戏主目录: game/
 - 后端目录: backend/
 
 ## 核心架构
@@ -691,7 +691,7 @@ UI: dialogue_ui/interaction_prompt/quest_panel/forum_ui/forum_data/tv_overlay/ba
 - **根因**：`api_client.gd` 的 `_npc_personas` 字典只有3个NPC，新NPC全部回退到张三身份
 - **解决方案**：
   - `api_client.gd`：扩展 `_npc_personas` 从3个→8个，包含陈曦、赵霖、孙悦、刘风、何真的独立身份配置
-  - 改进 `system_prompt`：添加赛博小镇世界观背景和严格身份约束
+  - 改进 `system_prompt`：添加新港·207世界观背景和严格身份约束
   - `dialogue_ui.gd`：扩展 `name_map`/`title_map`/`avatar_map`/`npc_color_map` 覆盖全部8个NPC
   - 新增 `_generate_placeholder_avatar()`：缺失头像时自动生成带职业主题色的彩色边框占位图
 

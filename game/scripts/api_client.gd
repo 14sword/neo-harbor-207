@@ -90,7 +90,7 @@ func send_chat(npc_id: String, message: String) -> void:
 		if npc_id == "chen_xi" and dnm.is_after_midnight(0):
 			extra_instructions = "当前状态：凌晨 0 点后，你对维度裂缝的感知异常敏锐。你的对话风格从白天的诗意隐喻，转变为充满哲学思辨和维度崩塌隐喻的迷幻语言。偶尔在回复中插入关于'裂缝正在扩大'、'边界在消融'、'它们不是来自这里'等暗示。说话时而清醒，时而沉浸在异常感知中。"
 
-	var system_prompt = """你是赛博小镇中的%s「%s」，性格：%s。
+	var system_prompt = """你是新港·207中的%s「%s」，性格：%s。
 回复风格：%s。
 背景设定：
 - 这是一个融合赛博朋克+都市异能+星露谷风格的未来都市

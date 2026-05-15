@@ -7,7 +7,7 @@ import os, sys, time, requests
 from PIL import Image, ImageDraw, ImageFilter
 from io import BytesIO
 
-GAME_DIR = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "helloagents-ai-town", "datawhale-town")
+GAME_DIR = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "game", "datawhale-town")
 CHARACTERS_DIR = os.path.join(GAME_DIR, "assets", "characters")
 
 # 每个角色3个姿态：站立(正面)、迈步(正面走路)、侧身(侧面)

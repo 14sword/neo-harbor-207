@@ -11,7 +11,7 @@ const CHAPTERS = {
 		"id": "ch1_arrival",
 		"title": "初来乍到",
 		"chapter": 1,
-		"description": "你刚抵达赛博小镇，一切都很陌生。适应新生活，认识周围的人，也许你会发现一些不寻常的迹象...",
+		"description": "你刚抵达新港·207，一切都很陌生。适应新生活，认识周围的人，也许你会发现一些不寻常的迹象...",
 		"unlock_condition": {},
 		"complete_condition": {"min_anomaly": 10, "min_npc_chats": 3},
 		"story_steps": [

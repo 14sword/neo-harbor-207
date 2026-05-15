@@ -2,7 +2,7 @@
 
 > 一个 2D 赛博朋克风格的 AI 驱动社会模拟 RPG —— 基于 Godot 4.6 构建，LLM 驱动的 NPC 对话，动态昼夜与世界系统
 
-**Neo Harbor 207**（原名「赛博小镇 / Datawhale Town」）是 [Hello-Agents](https://hello-agents.datawhale.cc/) 教程第十五章实战项目的延伸毕业设计。玩家以"城市身份接入终端"的方式登入 N.H.207 年的新港市，在公寓、办公室和街区之间自由探索，与 8 位 AI 驱动的 NPC 建立关系，体验动态昼夜、天气、世界历法和主线剧情。
+**Neo Harbor 207**（原名「新港·207」）是 [Hello-Agents](https://hello-agents.datawhale.cc/) 教程第十五章实战项目的延伸毕业设计。玩家以"城市身份接入终端"的方式登入 N.H.207 年的新港市，在公寓、办公室和街区之间自由探索，与 8 位 AI 驱动的 NPC 建立关系，体验动态昼夜、天气、世界历法和主线剧情。
 
 ---
 
@@ -118,7 +118,7 @@ uvicorn main:app --reload --port 8000
 
 ### 4. 启动游戏
 
-1. 用 Godot 4.6 打开 `game/project.godot`
+1. 用 Godot 4.6 打开 `helloagents-ai-town/datawhale-town/project.godot`
 2. 确保渲染器设置为 **GL Compatibility**
 3. 点击运行（F5）
 
@@ -128,15 +128,15 @@ uvicorn main:app --reload --port 8000
 
 | 角色选择终端 | 玩家公寓（白天） |
 |:---:|:---:|
-| ![登录选角色1](screenshots/登录选角色1.png) | ![玩家公寓白天](screenshots/玩家公寓白天.png) |
+| ![登录选角色1](../screenshots/登录选角色1.png) | ![玩家公寓白天](../screenshots/玩家公寓白天.png) |
 
 | 玩家公寓（深夜） | 办公室 |
 |:---:|:---:|
-| ![玩家公寓深夜](screenshots/玩家公寓深夜.png) | ![办公室](screenshots/办公室.png) |
+| ![玩家公寓深夜](../screenshots/玩家公寓深夜.png) | ![办公室](../screenshots/办公室.png) |
 
 | 角色选择-职业详情 | 小镇全景 |
 |:---:|:---:|
-| ![登录选角色2](screenshots/登录选角色2.png) | ![小镇](screenshots/小镇.png) |
+| ![登录选角色2](../screenshots/登录选角色2.png) | ![小镇](../screenshots/小镇.png) |
 
 ---
 
@@ -204,7 +204,7 @@ uvicorn main:app --reload --port 8000
 ```
 neo-harbor-207/
 ├── README.md                          # 本文件
-├── 赛博小镇项目文档.md                 # 详细中文项目文档
+├── PROJECT_DOC.md                      # 详细中文项目文档
 ├── backend/                           # Python FastAPI 后端
 │   ├── main.py                        # 14 API 端点
 │   ├── agents.py                      # NPC Agent + RAG 检索
@@ -221,11 +221,11 @@ neo-harbor-207/
 │   ├── requirements.txt
 │   ├── .env.example
 │   └── data/
-├── tools/                            # AI 辅助生成脚本（10 个）
-├── screenshots/                      # 游戏截图
-└── game/                             # Godot 项目
-    ├── project.godot                  # Godot 项目文件
-    ├── scenes/                        # 21 个场景
+├── tools/
+│   └── generate_characters.py         # AI 角色立绘生成
+└── helloagents-ai-town/datawhale-town/
+    ├── project.godot                   # Godot 项目文件
+    ├── scenes/                         # 21 个场景
     │   ├── character_select.tscn       # 城市接入终端
     │   ├── apartment.tscn              # 公寓场景
     │   ├── main.tscn                   # 办公室场景
