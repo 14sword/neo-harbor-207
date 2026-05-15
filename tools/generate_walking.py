@@ -1,13 +1,13 @@
 #!/usr/bin/env python3
 """
-赛博小镇 - 角色行走动画帧生成器
+新港·207 - 角色行走动画帧生成器
 为每个角色下载3个不同姿态（站立、迈步、侧身），生成真正的行走动画帧。
 """
 import os, sys, time, requests
 from PIL import Image, ImageDraw, ImageFilter
 from io import BytesIO
 
-GAME_DIR = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "game", "datawhale-town")
+GAME_DIR = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "game")
 CHARACTERS_DIR = os.path.join(GAME_DIR, "assets", "characters")
 
 # 每个角色3个姿态：站立(正面)、迈步(正面走路)、侧身(侧面)
@@ -223,7 +223,7 @@ def save_character_assets(character_id, frames, portrait, output_dir, avatar_dir
 
 def main():
     print("=" * 60)
-    print("赛博小镇 - 角色行走动画帧生成器（3姿态版）")
+    print("新港·207 - 角色行走动画帧生成器（3姿态版）")
     print("=" * 60)
 
     npcs_dir = os.path.join(CHARACTERS_DIR, "npcs")

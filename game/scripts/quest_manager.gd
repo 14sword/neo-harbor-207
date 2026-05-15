@@ -71,7 +71,7 @@ func _init_quests():
 		"explore_balcony": {
 			"id": "explore_balcony",
 			"title": "城市观察者",
-			"description": "在阳台观景3次，感受赛博小镇的脉搏",
+			"description": "在阳台观景3次，感受新港·207的脉搏",
 			"type": QuestType.EXPLORATION,
 			"npc_id": "",
 			"status": QuestStatus.AVAILABLE,
@@ -219,7 +219,7 @@ func _init_quests():
 		"story_ch1_explore_street": {
 			"id": "story_ch1_explore_street",
 			"title": "走出办公室",
-			"description": "前往街区，感受赛博小镇的氛围",
+			"description": "前往街区，感受新港·207的氛围",
 			"type": QuestType.STORY,
 			"npc_id": "",
 			"status": QuestStatus.LOCKED,

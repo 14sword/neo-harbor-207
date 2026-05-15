@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""生成赛博小镇角色待机动画 - 二次元动漫风格版本"""
+"""生成新港·207角色待机动画 - 二次元动漫风格版本"""
 import os
 import urllib.request
 import urllib.parse

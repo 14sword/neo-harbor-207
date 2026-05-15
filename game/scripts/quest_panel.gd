@@ -375,7 +375,8 @@ func refresh_quests():
 			if quest.get("type", "对话") == _current_filter:
 				filtered_quests.append(quest)
 
-	print("[QuestPanel] Filtered: ", filtered_quests.size(), " quests")
+	if OS.is_debug_build():
+		print("[QuestPanel] Filtered: ", filtered_quests.size(), " quests")
 
 	if filtered_quests.size() == 0:
 		for i in range(MAX_CARDS):

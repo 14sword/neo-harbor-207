@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""生成赛博小镇 NPC 赛博朋克风格精灵 - 3帧×4方向"""
+"""生成新港·207 NPC 赛博朋克风格精灵 - 3帧×4方向"""
 import os, urllib.request, urllib.parse, ssl, time
 
 ASSETS_BASE = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "assets", "characters", "npcs")

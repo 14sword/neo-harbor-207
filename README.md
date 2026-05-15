@@ -118,7 +118,7 @@ uvicorn main:app --reload --port 8000
 
 ### 4. 启动游戏
 
-1. 用 Godot 4.6 打开 `helloagents-ai-town/datawhale-town/project.godot`
+1. 用 Godot 4.6 打开 `game/project.godot`
 2. 确保渲染器设置为 **GL Compatibility**
 3. 点击运行（F5）
 
@@ -223,7 +223,7 @@ neo-harbor-207/
 │   └── data/
 ├── tools/
 │   └── generate_characters.py         # AI 角色立绘生成
-└── helloagents-ai-town/datawhale-town/
+└── game/
     ├── project.godot                   # Godot 项目文件
     ├── scenes/                         # 21 个场景
     │   ├── character_select.tscn       # 城市接入终端
@@ -306,7 +306,7 @@ neo-harbor-207/
 ## 👤 作者
 
 - **GitHub**: [@14sword](https://github.com/14sword)
-- **项目来源**: [Hello-Agents](https://hello-agents.datawhale.cc/) 教程第十五章「构建赛博小镇」毕业设计延伸
+- **项目来源**: [Hello-Agents](https://hello-agents.datawhale.cc/) 教程第十五章「构建新港·207」毕业设计延伸
 
 ---
 

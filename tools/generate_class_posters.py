@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""生成赛博小镇角色选择海报 - 使用 Pollinations.ai（无需 API Key）"""
+"""生成新港·207角色选择海报 - 使用 Pollinations.ai（无需 API Key）"""
 import os
 import urllib.request
 import urllib.parse

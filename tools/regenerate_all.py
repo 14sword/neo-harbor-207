@@ -4,7 +4,7 @@ import os, sys, time, requests
 from PIL import Image, ImageDraw
 from io import BytesIO
 
-GAME_DIR = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "game", "datawhale-town")
+GAME_DIR = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "game")
 CHARACTERS_DIR = os.path.join(GAME_DIR, "assets", "characters")
 
 CHARACTER_PROMPTS = {

@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-赛博小镇 - 角色立绘与精灵图生成器
+新港·207 - 角色立绘与精灵图生成器
 使用 Pollinations.ai 生成赛博朋克风格角色立绘，自动裁切为头像和行走帧精灵图。
 """
 
@@ -11,7 +11,7 @@ import requests
 from PIL import Image, ImageDraw, ImageFilter
 from io import BytesIO
 
-GAME_DIR = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "game", "datawhale-town")
+GAME_DIR = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "game")
 CHARACTERS_DIR = os.path.join(GAME_DIR, "assets", "characters")
 
 CHARACTER_PROMPTS = {
@@ -157,7 +157,7 @@ def save_character_assets(character_id: str, portrait: Image.Image, output_dir: 
 
 def main():
     print("=" * 60)
-    print("赛博小镇 - 角色立绘与精灵图生成器")
+    print("新港·207 - 角色立绘与精灵图生成器")
     print("=" * 60)
 
     npcs_dir = os.path.join(CHARACTERS_DIR, "npcs")

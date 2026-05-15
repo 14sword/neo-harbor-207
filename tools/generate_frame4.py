@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""生成赛博小镇角色待机动画第4帧（写实赛博朋克风格）"""
+"""生成新港·207角色待机动画第4帧（写实赛博朋克风格）"""
 import os
 import urllib.request
 import urllib.parse
