@@ -45,6 +45,7 @@
 - [x] **每日世界生成** — 天气/异常等级/城市事件/广告，基于确定性种子
 - [x] **5 种天气** — 晴/多云/小雨/雷暴/雾霾 + 雨滴粒子 + 闪电特效
 - [x] **媒体图片系统** — Unsplash + Pollinations.ai + 本地 fallback，10 个分类，LRU 缓存
+- [x] **世界地图与传送系统** — 地下站台与异常空间双向传送、门禁限制、全景地图 UI 完美呈现 NPC 所在地与直达传送
 
 ### 🤖 AI 系统
 - [x] **LLM 三级降级** — Groq（<500ms）→ MiMo-Flash → DeepSeek
@@ -64,6 +65,7 @@
 - [x] **街区** — 建筑碰撞体 + 气泡消息点 + 雨夜霓虹特效
 - [x] **宠物系统** — 狐狸/负鼠/老鹰/青蛙，自动跟随 + Tab 切换 + P 动作
 - [x] **7 个 UI 覆盖层** — 电视新闻/论坛/阳台/符纸/睡觉/对话/角色面板
+- [x] **2D 裂隙动作战斗系统** — 完整的 2D 实战战斗系统，包含 5 大异界领域（西幻黏液沼/东方符墓/镜界花庭/赛博废墟/影砂荒原）各自的 Modifier 特性、9 镶片递进关卡流程生成（3/6/9 层为 Boss 战，含黄符尸王、万界缝合者等）、4 时段 × 5 天气环境效果叠加、稀有度 Affix 词条装备掉落/穿戴/解体、以及 6 种叙事悬疑档案与战斗结算说明
 
 ---
 
@@ -72,7 +74,7 @@
 | 层 | 技术 | 说明 |
 |----|------|------|
 | **游戏引擎** | Godot 4.6 | GL Compatibility 渲染器（跨平台兼容） |
-| **前端语言** | GDScript | 44 个脚本文件，~7000 行代码 |
+| **前端语言** | GDScript | 60+ 个脚本文件，~10000 行代码 |
 | **后端框架** | Python FastAPI | 14 个 API 端点 |
 | **数据库** | SQLite + ChromaDB | 对话记忆 + 语义向量检索 |
 | **LLM 提供商** | Groq / MiMo / DeepSeek | 三级降级策略 |
@@ -144,7 +146,7 @@ uvicorn main:app --reload --port 8000
 
 | 按键 | 功能 |
 |------|------|
-| WASD / 方向键 | 移动主角 |
+| WASD / 方向键 | 移动主角 / 裂隙战斗中控制角色移动 |
 | E | 与 NPC 对话 / 触发场景交互 |
 | C | 打开角色面板（属性/技能/背包/剧情） |
 | Q | 打开任务面板 |
@@ -155,6 +157,11 @@ uvicorn main:app --reload --port 8000
 | L | 打开日志面板 |
 | ← → | 角色选择界面切换职业 |
 | Enter | 确认接入 |
+| M | 打开/关闭全景地图面板 |
+| J / 鼠标左键 | 裂隙战斗 - 普通攻击（三段连击链） |
+| K / 鼠标右键 | 裂隙战斗 - 释放职业专属技能（消耗体力/冷却） |
+| Space | 裂隙战斗 - 战术闪避（提供短暂无敌帧与位移） |
+| R | 裂隙战斗 - 使用药剂（生命药水 / 能量药剂） |
 
 ---
 
@@ -167,8 +174,14 @@ uvicorn main:app --reload --port 8000
 │  character_select → apartment           │
 │       (角色选择)        ↕                │
 │                   street ←→ main        │
+│                     ↕                   │
+│                underground              │
+│                     ↕                   │
+│               anomaly_space             │
+│                     ↓                   │
+│                  rift_run (裂隙战斗)    │
 │                                          │
-│  ┌──── 18 个 Autoload 单例 ────┐        │
+│  ┌──── 19 个 Autoload 单例 ────┐        │
 │  │ APIClient  SceneManager     │        │
 │  │ DayNightMgr  AudioManager   │        │
 │  │ SaveManager  QuestManager   │        │
@@ -176,7 +189,8 @@ uvicorn main:app --reload --port 8000
 │  │ UIThemeMgr   WeatherEffects │        │
 │  │ CharClassMgr StoryManager   │        │
 │  │ WorldCalendar DailyWorldGen │        │
-│  │ MediaManager ...            │        │
+│  │ MediaManager RiftRunManager │        │
+│  │ ...                         │        │
 │  └─────────────────────────────┘        │
 │                                          │
 │  4 个着色器: city_network / scan_line    │
@@ -233,7 +247,12 @@ neo-harbor-207/
     │   ├── underground.tscn            # 地下站台场景
     │   ├── anomaly_space.tscn          # 异常空间场景
     │   ├── map_panel.tscn              # 全景地图面板
-    │   └── rift_run.tscn               # 裂隙打怪核心战斗场景
+    │   ├── rift_run.tscn               # 裂隙打怪核心战斗场景
+    │   ├── rift_enemy.tscn             # 裂隙敌方单位
+    │   ├── rift_projectile.tscn        # 战斗投射物
+    │   ├── rift_hud.tscn               # 战斗血条与子弹 UI
+    │   ├── rift_tile_select.tscn       # 9镶片关卡选择 UI
+    │   └── rift_result_panel.tscn      # 战斗结算面板
     ├── scripts/                        # 60+ 个 GDScript
     │   ├── character_select.gd         # 12帧动画 + F5切换
     │   ├── character_class_manager.gd  # 4职业 + 42技能
@@ -241,7 +260,16 @@ neo-harbor-207/
     │   ├── npc.gd                      # NPC 状态机
     │   ├── map_panel.gd                # 地图 UI 逻辑
     │   ├── special_scene.gd            # 传送点交互
+    │   ├── underground_ambient.gd      # 地下站台动态特效渲染
     │   ├── rift/                       # 裂隙打怪战斗系统逻辑目录
+    │   │   ├── rift_run_manager.gd     # 战斗流程管理单例
+    │   │   ├── rift_player_combat.gd   # 玩家战斗控制与按键
+    │   │   ├── rift_enemy.gd           # 敌方 AI 状态与攻击模式
+    │   │   ├── rift_enemy_spawner.gd   # 怪物生成波次门控
+    │   │   ├── rift_environment_manager.gd # 天气与时段环境叠加
+    │   │   ├── rift_tile_select.gd     # 镶片关卡选择与属性
+    │   │   ├── rift_result_panel.gd    # 奖励掉落结算
+    │   │   └── ...
     │   └── ...
     ├── shaders/                        # 4 个 GLSL 着色器
     ├── assets/
