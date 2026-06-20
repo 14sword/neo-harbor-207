@@ -12,6 +12,7 @@ var _building_bubbles: Dictionary = {}
 var _near_exit: bool = false
 var _near_datawhale: bool = false
 var _near_apartment: bool = false
+var _near_underground: bool = false
 var _apartment_indicator: Node2D = null
 var _apartment_glow: PointLight2D = null
 
@@ -49,6 +50,11 @@ func _ready():
 	if apartment_entrance:
 		apartment_entrance.body_entered.connect(_on_apartment_entered)
 		apartment_entrance.body_exited.connect(_on_apartment_exited)
+
+	var underground_entrance = get_node_or_null("UndergroundEntrance")
+	if underground_entrance:
+		underground_entrance.body_entered.connect(_on_underground_entered)
+		underground_entrance.body_exited.connect(_on_underground_exited)
 
 	if has_node("/root/DayNightManager"):
 		get_node("/root/DayNightManager").phase_changed.connect(_on_phase_changed)
@@ -173,6 +179,9 @@ func _process(delta: float):
 	if _near_apartment and Input.is_action_just_pressed("interact"):
 		_transition_to_apartment()
 
+	if _near_underground and Input.is_action_just_pressed("interact"):
+		_transition_to_underground()
+
 	if _day_ambient_particles and _day_ambient_particles.emitting:
 		_dust_timer += delta
 		if _dust_timer > 20.0:
@@ -228,6 +237,20 @@ func _on_apartment_exited(body: Node2D):
 		if prompt and prompt.has_method("hide_prompt"):
 			prompt.hide_prompt()
 
+func _on_underground_entered(body: Node2D):
+	if body.is_in_group("player"):
+		_near_underground = true
+		var prompt = get_tree().get_first_node_in_group("interaction_prompt")
+		if prompt and prompt.has_method("show_prompt"):
+			prompt.show_prompt("enter_underground")
+
+func _on_underground_exited(body: Node2D):
+	if body.is_in_group("player"):
+		_near_underground = false
+		var prompt = get_tree().get_first_node_in_group("interaction_prompt")
+		if prompt and prompt.has_method("hide_prompt"):
+			prompt.hide_prompt()
+
 func _transition_to_office():
 	if has_node("/root/SceneManager"):
 		_log_event("🚪 返回办公室")
@@ -237,6 +260,11 @@ func _transition_to_apartment():
 	if has_node("/root/SceneManager"):
 		_log_event("🏠 进入公寓")
 		get_node("/root/SceneManager").transition_to(get_node("/root/SceneManager").GameScene.APARTMENT)
+
+func _transition_to_underground():
+	if has_node("/root/SceneManager"):
+		_log_event("进入地下站台")
+		get_node("/root/SceneManager").transition_to(get_node("/root/SceneManager").GameScene.UNDERGROUND)
 
 func _apply_street_background():
 	if not has_node("/root/DayNightManager"):
@@ -248,7 +276,9 @@ func _apply_street_background():
 		var bg_map = dnm.street_backgrounds
 		var bg_path = bg_map.get(dnm.current_phase, "")
 		if bg_path != "" and ResourceLoader.exists(bg_path):
-			bg.texture = load(bg_path)
+			var texture = dnm.get_background_texture(bg_path) if dnm.has_method("get_background_texture") else null
+			if texture:
+				bg.texture = texture
 
 	_apply_rain_visibility()
 

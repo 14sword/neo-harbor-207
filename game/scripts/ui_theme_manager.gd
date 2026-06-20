@@ -49,6 +49,7 @@ var themes: Dictionary = {
 		"quest_type_collection": Color(0.85, 0.6, 0.2),
 		"quest_type_daily": Color(0.65, 0.4, 0.8),
 		"quest_type_hidden": Color(0.85, 0.25, 0.3),
+		"quest_type_story": Color(0.66, 0.34, 0.88),
 		"scroll_bg": Color(0.91, 0.87, 0.79, 0.6),
 		"filter_active_bg": Color(0.72, 0.53, 0.31, 0.3),
 		"filter_inactive_bg": Color(0.88, 0.82, 0.7, 0.4),
@@ -91,6 +92,7 @@ var themes: Dictionary = {
 		"quest_type_collection": Color(0.95, 0.7, 0.25),
 		"quest_type_daily": Color(0.75, 0.45, 0.9),
 		"quest_type_hidden": Color(0.95, 0.3, 0.35),
+		"quest_type_story": Color(0.8, 0.45, 1.0),
 		"scroll_bg": Color(0.12, 0.06, 0.03, 0.7),
 		"filter_active_bg": Color(0.9, 0.6, 0.2, 0.3),
 		"filter_inactive_bg": Color(0.15, 0.08, 0.04, 0.5),
@@ -133,6 +135,7 @@ var themes: Dictionary = {
 		"quest_type_collection": Color(1.0, 0.75, 0.2),
 		"quest_type_daily": Color(0.75, 0.45, 1.0),
 		"quest_type_hidden": Color(1.0, 0.3, 0.4),
+		"quest_type_story": Color(0.86, 0.56, 1.0),
 		"scroll_bg": Color(0.05, 0.07, 0.14, 0.8),
 		"filter_active_bg": Color(0, 0.93, 1, 0.2),
 		"filter_inactive_bg": Color(0.05, 0.07, 0.14, 0.6),
@@ -364,6 +367,7 @@ func get_quest_type_icon(type_name: String) -> String:
 		"collection": return "📦"
 		"daily": return "🔄"
 		"hidden": return "👻"
+		"story": return "📖"
 		_: return "◈"
 
 func make_quest_type_tag(type_name: String) -> StyleBoxFlat:

@@ -8,6 +8,7 @@
 [ext_resource type="PackedScene" path="res://scenes/interaction_prompt.tscn" id="5_interaction_scene"]
 [ext_resource type="PackedScene" path="res://scenes/quest_panel.tscn" id="6_quest_scene"]
 [ext_resource type="PackedScene" path="res://scenes/character_panel.tscn" id="7_char_panel"]
+[ext_resource type="PackedScene" path="res://scenes/map_panel.tscn" id="8_map_panel"]
 
 [sub_resource type="RectangleShape2D" id="WallTop_shape"]
 size = Vector2(98.5, 44.5)
@@ -166,26 +167,22 @@ shape = SubResource("WorldBoundaryShape2D_85g3d")
 position = Vector2(244, 330)
 npc_name = "zhang_san"
 npc_title = "Python工程师"
+wander_range = 90.0
+patrol_points = Array[Vector2]([Vector2(244, 330), Vector2(320, 330), Vector2(320, 410), Vector2(230, 410)])
 
 [node name="NPC_Li" parent="NPCs" unique_id=396254103 instance=ExtResource("3_npc_scene")]
 position = Vector2(952, 340)
 npc_name = "li_si"
 npc_title = "产品经理"
+wander_range = 90.0
+patrol_points = Array[Vector2]([Vector2(952, 340), Vector2(1020, 340), Vector2(1020, 430), Vector2(930, 430)])
 
 [node name="NPC_Wang" parent="NPCs" unique_id=140016926 instance=ExtResource("3_npc_scene")]
 position = Vector2(513, 312)
 npc_name = "wang_wu"
 npc_title = "UI设计师"
-
-[node name="NPC_SunYue" parent="NPCs" instance=ExtResource("3_npc_scene")]
-position = Vector2(1100, 400)
-npc_name = "sun_yue"
-npc_title = "异常现象研究员"
-
-[node name="NPC_HeZhen" parent="NPCs" instance=ExtResource("3_npc_scene")]
-position = Vector2(350, 500)
-npc_name = "he_zhen"
-npc_title = "AI系统管理员"
+wander_range = 80.0
+patrol_points = Array[Vector2]([Vector2(513, 312), Vector2(590, 315), Vector2(570, 390), Vector2(500, 380)])
 
 [node name="Player" parent="." unique_id=1003015852 instance=ExtResource("2_player_scene")]
 position = Vector2(640, 600)
@@ -198,6 +195,8 @@ metadata/_edit_lock_ = true
 [node name="QuestPanel" parent="." unique_id=1934384266 instance=ExtResource("6_quest_scene")]
 
 [node name="CharacterPanel" parent="." instance=ExtResource("7_char_panel")]
+
+[node name="MapPanel" parent="." instance=ExtResource("8_map_panel")]
 
 [node name="ExitDoor" type="Area2D" parent="." unique_id=1839119764]
 position = Vector2(640, 700)

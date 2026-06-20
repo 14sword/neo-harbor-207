@@ -1,12 +1,24 @@
 import sqlite3
 import os
 import json
+from pathlib import Path
 from logger import logger
+
+DEFAULT_DB_PATH = str(Path(__file__).resolve().parent / "data" / "cyber_town.db")
+
+try:
+    from config import settings
+except Exception:
+    settings = None
 
 class DatabaseManager:
     """SQLite 数据库管理器，负责记忆和好感度的持久化"""
     
-    def __init__(self, db_path: str = "data/cyber_town.db"):
+    def __init__(self, db_path: str = ""):
+        if not db_path:
+            db_path = getattr(settings, "database_path", DEFAULT_DB_PATH) if settings else DEFAULT_DB_PATH
+        if not os.path.isabs(db_path):
+            db_path = str(Path(__file__).resolve().parent / db_path)
         os.makedirs(os.path.dirname(db_path), exist_ok=True)
         self.db_path = db_path
         self._init_db()

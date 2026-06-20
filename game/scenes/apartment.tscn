@@ -9,6 +9,7 @@
 [ext_resource type="Script" uid="uid://cuqmejp850mqy" path="res://scripts/apartment_effects.gd" id="7_effects"]
 [ext_resource type="Script" uid="uid://bmrgpe2filaea" path="res://scripts/apartment_ambient.gd" id="8_ambient"]
 [ext_resource type="PackedScene" path="res://scenes/character_panel.tscn" id="9_char_panel"]
+[ext_resource type="PackedScene" path="res://scenes/map_panel.tscn" id="10_map_panel"]
 
 [sub_resource type="RectangleShape2D" id="WallTop_shape"]
 size = Vector2(1672, 10)
@@ -401,3 +402,5 @@ script = ExtResource("8_ambient")
 script = ExtResource("7_effects")
 
 [node name="CharacterPanel" parent="." instance=ExtResource("9_char_panel")]
+
+[node name="MapPanel" parent="." instance=ExtResource("10_map_panel")]

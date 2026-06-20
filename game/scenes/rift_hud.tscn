@@ -1,0 +1,111 @@
+[gd_scene load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://scripts/rift/rift_hud.gd" id="1_script"]
+
+[node name="RiftHUD" type="CanvasLayer"]
+script = ExtResource("1_script")
+
+[node name="Root" type="Control" parent="."]
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+
+[node name="TopBar" type="HBoxContainer" parent="Root"]
+layout_mode = 0
+offset_left = 24.0
+offset_top = 18.0
+offset_right = 1260.0
+offset_bottom = 70.0
+theme_override_constants/separation = 12
+
+[node name="HpBox" type="VBoxContainer" parent="Root/TopBar"]
+custom_minimum_size = Vector2(230, 44)
+layout_mode = 2
+
+[node name="HPLabel" type="Label" parent="Root/TopBar/HpBox"]
+layout_mode = 2
+text = "HP"
+
+[node name="HPBar" type="ProgressBar" parent="Root/TopBar/HpBox"]
+layout_mode = 2
+max_value = 100.0
+value = 100.0
+show_percentage = false
+
+[node name="EpBox" type="VBoxContainer" parent="Root/TopBar"]
+custom_minimum_size = Vector2(230, 44)
+layout_mode = 2
+
+[node name="EPLabel" type="Label" parent="Root/TopBar/EpBox"]
+layout_mode = 2
+text = "EP"
+
+[node name="EPBar" type="ProgressBar" parent="Root/TopBar/EpBox"]
+layout_mode = 2
+max_value = 100.0
+value = 100.0
+show_percentage = false
+
+[node name="SkillBox" type="VBoxContainer" parent="Root/TopBar"]
+custom_minimum_size = Vector2(190, 44)
+layout_mode = 2
+
+[node name="SkillLabel" type="Label" parent="Root/TopBar/SkillBox"]
+layout_mode = 2
+text = "技能 READY"
+
+[node name="SkillBar" type="ProgressBar" parent="Root/TopBar/SkillBox"]
+layout_mode = 2
+max_value = 5.0
+value = 5.0
+show_percentage = false
+
+[node name="EvacuateButton" type="Button" parent="Root/TopBar"]
+custom_minimum_size = Vector2(92, 42)
+layout_mode = 2
+text = "撤离"
+
+[node name="InfoPanel" type="Panel" parent="Root"]
+layout_mode = 0
+offset_left = 24.0
+offset_top = 86.0
+offset_right = 452.0
+offset_bottom = 224.0
+mouse_filter = 2
+
+[node name="NodeLabel" type="Label" parent="Root/InfoPanel"]
+layout_mode = 0
+offset_left = 12.0
+offset_top = 8.0
+offset_right = 416.0
+offset_bottom = 30.0
+text = "等待选择镶片"
+
+[node name="ModifierLabel" type="Label" parent="Root/InfoPanel"]
+layout_mode = 0
+offset_left = 12.0
+offset_top = 32.0
+offset_right = 416.0
+offset_bottom = 104.0
+text = "空间稳定"
+autowrap_mode = 2
+
+[node name="WaveLabel" type="Label" parent="Root/InfoPanel"]
+layout_mode = 0
+offset_left = 12.0
+offset_top = 112.0
+offset_right = 210.0
+offset_bottom = 136.0
+text = "节点 0/9"
+
+[node name="KillLabel" type="Label" parent="Root/InfoPanel"]
+layout_mode = 0
+offset_left = 218.0
+offset_top = 112.0
+offset_right = 416.0
+offset_bottom = 136.0
+text = "击破 0"

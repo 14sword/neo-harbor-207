@@ -1,346 +1,706 @@
 extends CanvasLayer
 
-const MAX_CARDS: int = 10
+const MIN_SLOT_CAPACITY: int = 24
+const PANEL_HALF_WIDTH: float = 480.0
+const PANEL_HALF_HEIGHT: float = 326.0
 
 @onready var bg_overlay: ColorRect = $BGOverlay
 @onready var main_panel: Panel = $MainPanel
+@onready var main_container: VBoxContainer = $MainPanel/MainContainer
 @onready var title_label: Label = $MainPanel/MainContainer/Header/TitleRow/TitleLabel
 @onready var close_button: Button = $MainPanel/MainContainer/Header/TitleRow/CloseButton
 @onready var filter_bar: HBoxContainer = $MainPanel/MainContainer/Header/FilterBar
-@onready var filter_all: Button = $MainPanel/MainContainer/Header/FilterBar/FilterAll
-@onready var filter_dialogue: Button = $MainPanel/MainContainer/Header/FilterBar/FilterDialogue
-@onready var filter_exploration: Button = $MainPanel/MainContainer/Header/FilterBar/FilterExploration
-@onready var filter_collection: Button = $MainPanel/MainContainer/Header/FilterBar/FilterCollection
-@onready var filter_daily: Button = $MainPanel/MainContainer/Header/FilterBar/FilterDaily
-@onready var card_pool: VBoxContainer = $MainPanel/MainContainer/ScrollContainer/CardPool
+@onready var old_scroll_container: ScrollContainer = $MainPanel/MainContainer/ScrollContainer
 @onready var status_label: Label = $MainPanel/MainContainer/Footer/StatusLabel
 @onready var date_label: Label = $MainPanel/MainContainer/Footer/DateLabel
 
 var _slide_tween: Tween = null
-var _current_filter: String = "全部"
+var _current_filter: String = "all"
+var _selected_quest_id: String = ""
 var _filter_buttons: Dictionary = {}
-var _card_slots: Array = []
+var _list_slots: Array[Button] = []
+var _slot_quest_ids: Array[String] = []
+var _list_box: VBoxContainer = null
+var _detail_box: VBoxContainer = null
+var _empty_label: Label = null
+var _body_split: HSplitContainer = null
+var _summary_bar: HBoxContainer = null
+var _summary_labels: Dictionary = {}
 
-var _type_icons: Dictionary = {
-	"dialogue": "💬",
-	"exploration": "🔍",
-	"collection": "📦",
-	"daily": "🔄",
-	"hidden": "👻",
-}
-
-# 预创建的样式实例（一次性初始化）
-var _panel_style: StyleBoxFlat = null
-var _card_style: StyleBoxFlat = null
-var _title_style: StyleBoxFlat = null
-var _close_normal_style: StyleBoxFlat = null
-var _close_hover_style: StyleBoxFlat = null
-var _scroll_style: StyleBoxFlat = null
-var _progress_bg_style: StyleBoxFlat = null
-var _progress_fill_style: StyleBoxFlat = null
-var _accept_normal_style: StyleBoxFlat = null
-var _accept_hover_style: StyleBoxFlat = null
-var _accept_pressed_style: StyleBoxFlat = null
-var _tag_styles: Dictionary = {}
-
-func _ready():
+func _ready() -> void:
 	visible = false
-	_init_card_slots()
+	_configure_panel_geometry()
+	_build_body_layout()
 	_init_filter_buttons()
-	_init_styles()
+	_init_list_slots()
 	_connect_signals()
 	_apply_theme()
 
-func _init_card_slots():
-	for i in range(MAX_CARDS):
-		var slot = card_pool.get_child(i)
-		if slot:
-			_card_slots.append(slot)
-			_setup_card_slot(slot, i)
+func _configure_panel_geometry() -> void:
+	main_panel.anchor_left = 0.0
+	main_panel.anchor_top = 0.0
+	main_panel.anchor_right = 0.0
+	main_panel.anchor_bottom = 0.0
+	main_panel.offset_left = 0.0
+	main_panel.offset_top = 0.0
+	main_panel.offset_right = PANEL_HALF_WIDTH * 2.0
+	main_panel.offset_bottom = PANEL_HALF_HEIGHT * 2.0
+	main_panel.position = _get_centered_panel_position()
 
-func _setup_card_slot(slot: PanelContainer, idx: int):
-	slot.name = "CardSlot" + str(idx)
-	var hbox = HBoxContainer.new()
-	hbox.name = "CardContent"
-	hbox.add_theme_constant_override("separation", 12)
-	slot.add_child(hbox)
+func _get_centered_panel_position() -> Vector2:
+	var viewport_size := get_viewport().get_visible_rect().size
+	var panel_size := Vector2(PANEL_HALF_WIDTH * 2.0, PANEL_HALF_HEIGHT * 2.0)
+	return Vector2(
+		maxf((viewport_size.x - panel_size.x) * 0.5, 12.0),
+		maxf((viewport_size.y - panel_size.y) * 0.5, 12.0)
+	)
 
-	var indicator_vbox = VBoxContainer.new()
-	indicator_vbox.name = "Indicator"
-	indicator_vbox.add_theme_constant_override("separation", 0)
-	indicator_vbox.custom_minimum_size = Vector2(12, 0)
+func _get_hidden_panel_position(target: Vector2) -> Vector2:
+	return Vector2(-PANEL_HALF_WIDTH * 2.0 - 24.0, target.y)
 
-	var dot = ColorRect.new()
-	dot.name = "Dot"
-	dot.custom_minimum_size = Vector2(10, 10)
-	dot.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
-	indicator_vbox.add_child(dot)
+func _build_body_layout() -> void:
+	if old_scroll_container:
+		old_scroll_container.visible = false
+		old_scroll_container.custom_minimum_size = Vector2(0, 0)
+	_build_summary_bar()
+	_body_split = HSplitContainer.new()
+	_body_split.name = "QuestBody"
+	_body_split.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	_body_split.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	_body_split.custom_minimum_size = Vector2(0, 462)
+	_body_split.split_offset = 360
 
-	var line = ColorRect.new()
-	line.name = "Line"
-	line.custom_minimum_size = Vector2(2, 0)
-	line.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
-	line.size_flags_vertical = Control.SIZE_EXPAND_FILL
-	indicator_vbox.add_child(line)
+	var list_panel := PanelContainer.new()
+	list_panel.name = "QuestListPanel"
+	list_panel.custom_minimum_size = Vector2(360, 0)
+	_body_split.add_child(list_panel)
 
-	hbox.add_child(indicator_vbox)
+	var list_scroll := ScrollContainer.new()
+	list_scroll.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	list_scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	list_panel.add_child(list_scroll)
 
-	var vbox = VBoxContainer.new()
-	vbox.name = "Content"
-	vbox.add_theme_constant_override("separation", 5)
-	vbox.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	_list_box = VBoxContainer.new()
+	_list_box.name = "QuestList"
+	_list_box.add_theme_constant_override("separation", 7)
+	_list_box.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	list_scroll.add_child(_list_box)
 
-	var title_hbox = HBoxContainer.new()
-	title_hbox.name = "TitleRow"
-	title_hbox.add_theme_constant_override("separation", 8)
+	_empty_label = Label.new()
+	_empty_label.visible = false
+	_empty_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	_empty_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	_list_box.add_child(_empty_label)
 
-	var type_tag = PanelContainer.new()
-	type_tag.name = "TypeTag"
-	var tag_hbox = HBoxContainer.new()
-	tag_hbox.name = "TagHBox"
-	tag_hbox.add_theme_constant_override("separation", 3)
-	type_tag.add_child(tag_hbox)
-	title_hbox.add_child(type_tag)
+	var detail_panel := PanelContainer.new()
+	detail_panel.name = "QuestDetailPanel"
+	detail_panel.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	_body_split.add_child(detail_panel)
 
-	var type_icon_lbl = Label.new()
-	type_icon_lbl.name = "TypeIcon"
-	tag_hbox.add_child(type_icon_lbl)
+	var detail_scroll := ScrollContainer.new()
+	detail_scroll.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	detail_scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	detail_panel.add_child(detail_scroll)
 
-	var type_lbl = Label.new()
-	type_lbl.name = "TypeLabel"
-	tag_hbox.add_child(type_lbl)
+	_detail_box = VBoxContainer.new()
+	_detail_box.name = "QuestDetail"
+	_detail_box.add_theme_constant_override("separation", 10)
+	_detail_box.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	detail_scroll.add_child(_detail_box)
 
-	var title_lbl = Label.new()
-	title_lbl.name = "Title"
-	title_hbox.add_child(title_lbl)
+	var footer := main_container.get_node_or_null("Footer")
+	main_container.add_child(_body_split)
+	if footer:
+		main_container.move_child(_body_split, footer.get_index())
 
-	var status_lbl = Label.new()
-	status_lbl.name = "Status"
-	status_lbl.size_flags_vertical = Control.SIZE_SHRINK_CENTER
-	title_hbox.add_child(status_lbl)
-
-	vbox.add_child(title_hbox)
-
-	var desc_lbl = Label.new()
-	desc_lbl.name = "Description"
-	desc_lbl.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	vbox.add_child(desc_lbl)
-
-	var progress_hbox = HBoxContainer.new()
-	progress_hbox.name = "ProgressRow"
-	progress_hbox.add_theme_constant_override("separation", 10)
-
-	var progress_bar = ProgressBar.new()
-	progress_bar.name = "ProgressBar"
-	progress_bar.custom_minimum_size = Vector2(120, 14)
-	progress_bar.show_percentage = false
-	progress_hbox.add_child(progress_bar)
-
-	var progress_text = Label.new()
-	progress_text.name = "ProgressText"
-	progress_hbox.add_child(progress_text)
-
-	vbox.add_child(progress_hbox)
-
-	var reward_hbox = HBoxContainer.new()
-	reward_hbox.name = "RewardRow"
-	reward_hbox.add_theme_constant_override("separation", 4)
-
-	var reward_icon = Label.new()
-	reward_icon.name = "RewardIcon"
-	reward_icon.text = "🎁"
-	reward_hbox.add_child(reward_icon)
-
-	var reward_lbl = Label.new()
-	reward_lbl.name = "RewardLabel"
-	reward_hbox.add_child(reward_lbl)
-
-	vbox.add_child(reward_hbox)
-
-	var action_btn = Button.new()
-	action_btn.name = "ActionButton"
-	action_btn.custom_minimum_size = Vector2(80, 30)
-	action_btn.visible = false
-	vbox.add_child(action_btn)
-
-	hbox.add_child(vbox)
-
-func _init_filter_buttons():
-	_filter_buttons["全部"] = filter_all
-	_filter_buttons["对话"] = filter_dialogue
-	_filter_buttons["探索"] = filter_exploration
-	_filter_buttons["收集"] = filter_collection
-	_filter_buttons["日常"] = filter_daily
-
-	filter_all.pressed.connect(_on_filter_pressed.bind("全部"))
-	filter_dialogue.pressed.connect(_on_filter_pressed.bind("对话"))
-	filter_exploration.pressed.connect(_on_filter_pressed.bind("探索"))
-	filter_collection.pressed.connect(_on_filter_pressed.bind("收集"))
-	filter_daily.pressed.connect(_on_filter_pressed.bind("日常"))
-
-func _init_styles():
-	if not has_node("/root/UIThemeManager"):
+func _build_summary_bar() -> void:
+	if _summary_bar:
 		return
-	var tm = get_node("/root/UIThemeManager")
-	var t = tm.get_theme()
+	var header := main_container.get_node_or_null("Header")
+	if not header:
+		return
+	_summary_bar = HBoxContainer.new()
+	_summary_bar.name = "SummaryBar"
+	_summary_bar.add_theme_constant_override("separation", 8)
+	_summary_bar.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	header.add_child(_summary_bar)
+	for data in [
+		{"id": "active", "label": "进行中"},
+		{"id": "available", "label": "可接取"},
+		{"id": "recommended", "label": "推荐"},
+		{"id": "archived", "label": "归档"},
+	]:
+		var label := Label.new()
+		label.name = "Summary" + str(data["id"]).capitalize()
+		label.text = str(data["label"]) + " 0"
+		label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+		label.custom_minimum_size = Vector2(92, 24)
+		label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		_summary_bar.add_child(label)
+		_summary_labels[str(data["id"])] = label
 
-	_panel_style = tm.make_panel_style()
-	_card_style = tm.make_card_style()
-	_title_style = tm.make_title_bar_style()
+func _init_filter_buttons() -> void:
+	_filter_buttons.clear()
+	for child in filter_bar.get_children():
+		if child is Button:
+			child.visible = false
+	for filter_data in [
+		{"id": "all", "label": "全部"},
+		{"id": "story", "label": "剧情"},
+		{"id": "dialogue", "label": "对话"},
+		{"id": "exploration", "label": "探索"},
+		{"id": "collection", "label": "收集"},
+		{"id": "daily", "label": "日常"},
+		{"id": "hidden", "label": "隐藏"},
+		{"id": "completed", "label": "归档"},
+	]:
+		var btn := Button.new()
+		btn.text = str(filter_data["label"])
+		btn.focus_mode = Control.FOCUS_NONE
+		btn.custom_minimum_size = Vector2(70, 28)
+		btn.pressed.connect(_on_filter_pressed.bind(str(filter_data["id"])))
+		filter_bar.add_child(btn)
+		_filter_buttons[str(filter_data["id"])] = btn
 
-	var close_styles = tm.make_close_button_styles()
-	_close_normal_style = close_styles["normal"]
-	_close_hover_style = close_styles["hover"]
+func _init_list_slots() -> void:
+	_list_slots.clear()
+	_slot_quest_ids.clear()
+	_ensure_slot_capacity(MIN_SLOT_CAPACITY)
 
-	_scroll_style = tm.make_scroll_container_style()
+func _ensure_slot_capacity(count: int) -> void:
+	while _list_slots.size() < count:
+		var idx := _list_slots.size()
+		var slot := Button.new()
+		slot.name = "QuestSlot" + str(idx)
+		slot.alignment = HORIZONTAL_ALIGNMENT_LEFT
+		slot.focus_mode = Control.FOCUS_NONE
+		slot.clip_text = true
+		slot.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
+		slot.custom_minimum_size = Vector2(0, 72)
+		slot.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		slot.visible = false
+		slot.pressed.connect(_on_slot_pressed.bind(idx))
+		_list_box.add_child(slot)
+		_list_slots.append(slot)
+		_slot_quest_ids.append("")
 
-	var prog_styles = tm.make_progress_bar_styles()
-	_progress_bg_style = prog_styles["bg"]
-	_progress_fill_style = prog_styles["fill"]
-
-	var accept_styles = tm.make_accept_button_styles()
-	_accept_normal_style = accept_styles["normal"]
-	_accept_hover_style = accept_styles["hover"]
-	_accept_pressed_style = accept_styles["pressed"]
-
-	for type_key in ["dialogue", "exploration", "collection", "daily", "hidden"]:
-		_tag_styles[type_key] = tm.make_quest_type_tag(type_key)
-
-func _connect_signals():
+func _connect_signals() -> void:
 	if close_button:
 		close_button.pressed.connect(_on_close_button_pressed)
 	if has_node("/root/DayNightManager"):
 		get_node("/root/DayNightManager").phase_changed.connect(_on_phase_changed)
 	if has_node("/root/QuestManager"):
 		var qm = get_node("/root/QuestManager")
-		qm.quest_updated.connect(_on_quest_updated)
+		qm.quest_updated.connect(_on_quest_changed)
 		qm.quest_completed.connect(_on_quest_completed)
-		qm.new_quest_available.connect(_on_new_quest_available)
-		qm.quest_accepted.connect(_on_quest_accepted)
+		qm.new_quest_available.connect(_on_quest_changed)
+		qm.quest_accepted.connect(_on_quest_changed)
+		if qm.has_signal("quest_tracked_changed"):
+			qm.quest_tracked_changed.connect(_on_tracked_changed)
+		if qm.has_signal("quest_recommendations_changed"):
+			qm.quest_recommendations_changed.connect(_on_recommendations_changed)
+		if qm.has_signal("daily_quests_reset"):
+			qm.daily_quests_reset.connect(_on_daily_quests_reset)
 
-func _apply_theme():
+func _apply_theme() -> void:
 	if not has_node("/root/UIThemeManager"):
 		return
 	var tm = get_node("/root/UIThemeManager")
 	var t = tm.get_theme()
-
-	if main_panel and _panel_style:
-		main_panel.add_theme_stylebox_override("panel", _panel_style)
-
+	if main_panel:
+		main_panel.add_theme_stylebox_override("panel", tm.make_panel_style())
 	if title_label:
 		title_label.add_theme_color_override("font_color", t["title_color"])
 		tm.apply_font_bold_to_label(title_label, 22)
-
 	if close_button:
-		if _close_normal_style:
-			close_button.add_theme_stylebox_override("normal", _close_normal_style)
-		if _close_hover_style:
-			close_button.add_theme_stylebox_override("hover", _close_hover_style)
+		var close_styles = tm.make_close_button_styles()
+		close_button.add_theme_stylebox_override("normal", close_styles["normal"])
+		close_button.add_theme_stylebox_override("hover", close_styles["hover"])
 		close_button.add_theme_color_override("font_color", Color(1, 0.85, 0.85))
-
+	if _body_split:
+		for panel in [_body_split.get_child(0), _body_split.get_child(1)]:
+			if panel is PanelContainer:
+				panel.add_theme_stylebox_override("panel", tm.make_card_style())
+	if _empty_label:
+		_empty_label.add_theme_color_override("font_color", t["secondary_color"])
+		tm.apply_font_to_label(_empty_label, 14)
 	if status_label:
-		status_label.add_theme_color_override("font_color", Color(t["secondary_color"].r, t["secondary_color"].g, t["secondary_color"].b, 0.6))
-		tm.apply_font_to_label(status_label, 12)
-
+		status_label.add_theme_color_override("font_color", Color(t["secondary_color"].r, t["secondary_color"].g, t["secondary_color"].b, 0.65))
 	if date_label:
-		date_label.add_theme_color_override("font_color", Color(t["secondary_color"].r, t["secondary_color"].g, t["secondary_color"].b, 0.6))
-		tm.apply_font_to_label(date_label, 12)
-
+		date_label.add_theme_color_override("font_color", Color(t["secondary_color"].r, t["secondary_color"].g, t["secondary_color"].b, 0.65))
 	_update_date_label()
+	_apply_summary_styles()
 	_apply_filter_styles()
 
-func _apply_filter_styles():
+func _apply_summary_styles() -> void:
 	if not has_node("/root/UIThemeManager"):
 		return
 	var tm = get_node("/root/UIThemeManager")
-	for filter_name in _filter_buttons:
-		var btn = _filter_buttons[filter_name]
-		var is_active = (filter_name == _current_filter)
-		var styles = tm.make_filter_button_styles(is_active)
+	var t = tm.get_theme()
+	for key in _summary_labels:
+		var label: Label = _summary_labels[key]
+		var color: Color = t["accent_color"]
+		if key == "active":
+			color = t["success_color"]
+		elif key == "available":
+			color = t["accent_color"]
+		elif key == "recommended":
+			color = t["warning_color"]
+		elif key == "archived":
+			color = t["secondary_color"]
+		label.add_theme_color_override("font_color", color)
+		label.add_theme_stylebox_override("normal", _make_pill_style(color, 0.12, 0.42))
+		tm.apply_font_to_label(label, 12, true)
+
+func _apply_filter_styles() -> void:
+	if not has_node("/root/UIThemeManager"):
+		return
+	var tm = get_node("/root/UIThemeManager")
+	for filter_id in _filter_buttons:
+		var btn: Button = _filter_buttons[filter_id]
+		var styles = tm.make_filter_button_styles(filter_id == _current_filter)
 		btn.add_theme_stylebox_override("normal", styles["normal"])
 		btn.add_theme_stylebox_override("hover", styles["hover"])
 		btn.add_theme_color_override("font_color", styles["font_color"])
 		tm.apply_font_to_button(btn, 13)
 
-func _input(event: InputEvent):
+func _input(event: InputEvent) -> void:
 	if event is InputEventKey and event.pressed and not event.echo:
-		if event.keycode == KEY_Q:
-			if not _is_dialogue_open():
-				if OS.is_debug_build():
-					print("[QuestPanel] Q pressed, toggling panel")
-				toggle_panel()
-				get_viewport().set_input_as_handled()
+		if event.keycode == KEY_Q and not _is_dialogue_open():
+			toggle_panel()
+			get_viewport().set_input_as_handled()
 
 func _is_dialogue_open() -> bool:
 	var dialogue_ui = get_tree().get_first_node_in_group("dialogue_ui")
-	if dialogue_ui and dialogue_ui.visible:
-		return true
-	return false
+	return dialogue_ui and dialogue_ui.visible
 
-func toggle_panel():
+func toggle_panel() -> void:
 	if visible:
 		hide_panel()
 	else:
 		show_panel()
 
-func show_panel():
+func show_panel() -> void:
 	refresh_quests()
+	_configure_panel_geometry()
+	var target_position := _get_centered_panel_position()
 	visible = true
 	bg_overlay.visible = true
 	main_panel.visible = true
 	main_panel.modulate = Color(1, 1, 1, 0)
-	main_panel.position.x = -620
-
+	main_panel.position = _get_hidden_panel_position(target_position)
 	if _slide_tween:
 		_slide_tween.kill()
 	_slide_tween = create_tween()
 	_slide_tween.set_ease(Tween.EASE_OUT)
 	_slide_tween.set_trans(Tween.TRANS_CUBIC)
-	_slide_tween.tween_property(main_panel, "position:x", -300.0, 0.3)
-	_slide_tween.parallel().tween_property(main_panel, "modulate", Color(1, 1, 1, 1), 0.25)
+	_slide_tween.tween_property(main_panel, "position", target_position, 0.28)
+	_slide_tween.parallel().tween_property(main_panel, "modulate", Color(1, 1, 1, 1), 0.22)
 
-func hide_panel():
+func hide_panel() -> void:
 	if _slide_tween:
 		_slide_tween.kill()
+	var target_position := _get_centered_panel_position()
 	_slide_tween = create_tween()
 	_slide_tween.set_ease(Tween.EASE_IN)
 	_slide_tween.set_trans(Tween.TRANS_CUBIC)
-	_slide_tween.tween_property(main_panel, "position:x", -620.0, 0.25)
-	_slide_tween.parallel().tween_property(main_panel, "modulate", Color(1, 1, 1, 0), 0.2)
+	_slide_tween.tween_property(main_panel, "position", _get_hidden_panel_position(target_position), 0.22)
+	_slide_tween.parallel().tween_property(main_panel, "modulate", Color(1, 1, 1, 0), 0.18)
 	_slide_tween.tween_callback(func():
 		visible = false
 		bg_overlay.visible = false
 		main_panel.visible = false
 	)
 
-func _on_close_button_pressed():
-	hide_panel()
+func refresh_quests() -> void:
+	if not has_node("/root/QuestManager") or not has_node("/root/UIThemeManager"):
+		return
+	var qm = get_node("/root/QuestManager")
+	var live_quests: Array = qm.get_quest_view_data("all", false)
+	var archived_quests: Array = qm.get_completed_archive_data()
+	var quests: Array = qm.get_completed_archive_data() if _current_filter == "completed" else qm.get_quest_view_data(_current_filter, false)
+	_validate_selected_quest(quests)
+	_update_summary(live_quests, archived_quests.size())
+	_update_list_slots(quests)
+	_update_detail(quests)
+	_update_footer(quests.size(), live_quests.size(), archived_quests.size())
 
-func _on_filter_pressed(filter_name: String):
-	_current_filter = filter_name
+func _validate_selected_quest(quests: Array) -> void:
+	for quest in quests:
+		if quest is Dictionary and str(quest.get("id", "")) == _selected_quest_id:
+			return
+	_selected_quest_id = ""
+	if not quests.is_empty() and quests[0] is Dictionary:
+		_selected_quest_id = str(quests[0].get("id", ""))
+
+func _update_list_slots(quests: Array) -> void:
+	var tm = get_node("/root/UIThemeManager")
+	var t = tm.get_theme()
+	_ensure_slot_capacity(maxi(quests.size(), MIN_SLOT_CAPACITY))
+	_empty_label.visible = quests.is_empty()
+	_empty_label.text = "暂无任务记录"
+	for i in range(_list_slots.size()):
+		if i >= quests.size():
+			_list_slots[i].visible = false
+			_slot_quest_ids[i] = ""
+			continue
+		var quest: Dictionary = quests[i]
+		var slot := _list_slots[i]
+		var quest_id := str(quest.get("id", ""))
+		_slot_quest_ids[i] = quest_id
+		slot.visible = true
+		slot.text = _quest_slot_text(quest)
+		slot.tooltip_text = str(quest.get("description", ""))
+		var selected := quest_id == _selected_quest_id
+		var type_color: Color = tm.get_quest_type_color(str(quest.get("type_key", "dialogue")))
+		slot.add_theme_stylebox_override("normal", _make_slot_style(t, type_color, selected, false))
+		slot.add_theme_stylebox_override("hover", _make_slot_style(t, type_color, selected, true))
+		slot.add_theme_color_override("font_color", t["title_color"] if selected else t["text_color"])
+		tm.apply_font_to_button(slot, 13)
+		slot.disabled = false
+
+func _update_detail(quests: Array) -> void:
+	for child in _detail_box.get_children():
+		child.free()
+	var quest := _find_quest_entry(quests, _selected_quest_id)
+	if quest.is_empty():
+		_add_detail_empty("选择一个任务查看详情")
+		return
+	var tm = get_node("/root/UIThemeManager")
+	var t = tm.get_theme()
+	var type_key := str(quest.get("type_key", "dialogue"))
+
+	var hero := PanelContainer.new()
+	hero.name = "QuestDetailHero"
+	hero.add_theme_stylebox_override("panel", _make_detail_hero_style(t, tm.get_quest_type_color(type_key)))
+	_detail_box.add_child(hero)
+
+	var hero_box := VBoxContainer.new()
+	hero_box.add_theme_constant_override("separation", 8)
+	hero.add_child(hero_box)
+
+	var title_row := HBoxContainer.new()
+	title_row.add_theme_constant_override("separation", 8)
+	hero_box.add_child(title_row)
+
+	var type_label := Label.new()
+	type_label.text = tm.get_quest_type_icon(type_key) + " " + str(quest.get("type", "任务"))
+	type_label.add_theme_color_override("font_color", tm.get_quest_type_color(type_key))
+	type_label.add_theme_font_size_override("font_size", 13)
+	type_label.add_theme_stylebox_override("normal", tm.make_quest_type_tag(type_key))
+	title_row.add_child(type_label)
+
+	var status_label_detail := Label.new()
+	status_label_detail.text = str(quest.get("status", ""))
+	status_label_detail.add_theme_color_override("font_color", _status_color(quest, t))
+	status_label_detail.add_theme_font_size_override("font_size", 13)
+	status_label_detail.add_theme_stylebox_override("normal", _make_pill_style(_status_color(quest, t), 0.12, 0.52))
+	title_row.add_child(status_label_detail)
+
+	if bool(quest.get("tracked", false)):
+		var tracked_label := Label.new()
+		tracked_label.text = "追踪中"
+		tracked_label.add_theme_color_override("font_color", t["accent_color"])
+		tracked_label.add_theme_font_size_override("font_size", 13)
+		tracked_label.add_theme_stylebox_override("normal", _make_pill_style(t["accent_color"], 0.12, 0.5))
+		title_row.add_child(tracked_label)
+
+	var title := Label.new()
+	title.text = str(quest.get("title", ""))
+	title.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	title.add_theme_font_size_override("font_size", 21)
+	title.add_theme_color_override("font_color", t["text_color"])
+	hero_box.add_child(title)
+
+	var desc := Label.new()
+	desc.text = str(quest.get("description", ""))
+	desc.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	desc.add_theme_font_size_override("font_size", 13)
+	desc.add_theme_color_override("font_color", t["secondary_color"])
+	hero_box.add_child(desc)
+
+	_add_progress_detail(quest, tm, t)
+	_add_section_heading("任务目标", t["title_color"])
+	_add_text_line("目标: " + str(quest.get("target_hint", "继续探索")), t["hint_color"])
+	if not str(quest.get("target_action", "")).is_empty():
+		_add_text_line(str(quest.get("target_action", "")), t["secondary_color"])
+	if not str(quest.get("recommended_reason", "")).is_empty():
+		_add_section_heading("今日推荐", t["warning_color"])
+		_add_text_line("推荐: " + str(quest.get("recommended_reason", "")), t["warning_color"])
+	if not str(quest.get("reward", "")).is_empty():
+		_add_section_heading("报酬", t["title_color"])
+		_add_text_line("奖励: " + str(quest.get("reward", "")), t["warning_color"])
+	if int(quest.get("completed_day", 0)) > 0:
+		_add_text_line("完成于第 " + str(int(quest.get("completed_day", 0))) + " 天", t["secondary_color"])
+	_add_detail_actions(quest)
+
+func _add_progress_detail(quest: Dictionary, tm: Node, t: Dictionary) -> void:
+	var row := HBoxContainer.new()
+	row.add_theme_constant_override("separation", 10)
+	_detail_box.add_child(row)
+	var bar := ProgressBar.new()
+	bar.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	bar.custom_minimum_size = Vector2(0, 16)
+	bar.show_percentage = false
+	bar.value = clampf(float(quest.get("progress_ratio", 0.0)) * 100.0, 0.0, 100.0)
+	var progress_styles = tm.make_progress_bar_styles()
+	bar.add_theme_stylebox_override("background", progress_styles["bg"])
+	bar.add_theme_stylebox_override("fill", progress_styles["fill"])
+	row.add_child(bar)
+	var text := Label.new()
+	text.text = str(quest.get("progress", "0/1"))
+	text.add_theme_color_override("font_color", t["accent_color"])
+	row.add_child(text)
+
+func _add_text_line(text: String, color: Color) -> void:
+	var label := Label.new()
+	label.text = text
+	label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	label.add_theme_font_size_override("font_size", 13)
+	label.add_theme_color_override("font_color", color)
+	_detail_box.add_child(label)
+
+func _add_section_heading(text: String, color: Color) -> void:
+	var label := Label.new()
+	label.text = text
+	label.add_theme_font_size_override("font_size", 12)
+	label.add_theme_color_override("font_color", color)
+	_detail_box.add_child(label)
+
+func _add_detail_actions(quest: Dictionary) -> void:
+	var qm = get_node("/root/QuestManager")
+	var tm = get_node_or_null("/root/UIThemeManager")
+	var actions := HBoxContainer.new()
+	actions.add_theme_constant_override("separation", 8)
+	_detail_box.add_child(actions)
+	var quest_id := str(quest.get("id", ""))
+	var status_text := str(quest.get("status", ""))
+	if status_text == "可接取":
+		var accept_btn := Button.new()
+		accept_btn.text = "接取任务"
+		accept_btn.custom_minimum_size = Vector2(98, 32)
+		_style_action_button(accept_btn, "accept", tm)
+		accept_btn.pressed.connect(func():
+			qm.accept_quest(quest_id)
+			refresh_quests()
+		)
+		actions.add_child(accept_btn)
+	if status_text != "已完成":
+		var track_btn := Button.new()
+		track_btn.text = "取消追踪" if bool(quest.get("tracked", false)) else "追踪"
+		track_btn.custom_minimum_size = Vector2(98, 32)
+		_style_action_button(track_btn, "normal", tm)
+		track_btn.pressed.connect(func():
+			if bool(quest.get("tracked", false)):
+				qm.untrack_quest()
+			else:
+				qm.track_quest(quest_id)
+			refresh_quests()
+		)
+		actions.add_child(track_btn)
+	if not str(quest.get("target_area", "")).is_empty() and status_text != "已完成":
+		var jump_btn := Button.new()
+		jump_btn.text = "前往目标"
+		jump_btn.custom_minimum_size = Vector2(98, 32)
+		_style_action_button(jump_btn, "normal", tm)
+		jump_btn.pressed.connect(func():
+			qm.transition_to_quest_target(quest_id)
+		)
+		actions.add_child(jump_btn)
+	if actions.get_child_count() == 0:
+		_add_text_line("该任务已归档，暂无可用操作", get_node("/root/UIThemeManager").get_theme()["secondary_color"])
+
+func _add_detail_empty(text: String) -> void:
+	var label := Label.new()
+	label.text = text
+	label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	label.add_theme_font_size_override("font_size", 14)
+	if has_node("/root/UIThemeManager"):
+		label.add_theme_color_override("font_color", get_node("/root/UIThemeManager").get_theme()["secondary_color"])
+	_detail_box.add_child(label)
+
+func _update_footer(count: int, live_count: int = 0, archived_count: int = 0) -> void:
+	if status_label:
+		status_label.text = "◈ DATAWHALE 任务系统 · 当前 " + str(count) + " 项 · 进行中档案 " + str(live_count) + " · 归档 " + str(archived_count)
+	_update_date_label()
+
+func _quest_slot_text(quest: Dictionary) -> String:
+	var tm = get_node("/root/UIThemeManager")
+	var type_key := str(quest.get("type_key", "dialogue"))
+	var prefix := "★ " if bool(quest.get("tracked", false)) else ""
+	var recommend := " · " + str(quest.get("recommended_reason", "")) if not str(quest.get("recommended_reason", "")).is_empty() else ""
+	return "%s%s %s\n%s · %s · %s%s" % [
+		prefix,
+		tm.get_quest_type_icon(type_key),
+		_shorten(str(quest.get("title", "")), 18),
+		str(quest.get("status", "")),
+		str(quest.get("progress", "")),
+		_shorten(str(quest.get("target_hint", "")), 18),
+		recommend,
+	]
+
+func _update_summary(live_quests: Array, archived_count: int) -> void:
+	var active_count := 0
+	var available_count := 0
+	var recommended_count := 0
+	for quest in live_quests:
+		if not quest is Dictionary:
+			continue
+		match str(quest.get("status", "")):
+			"进行中":
+				active_count += 1
+			"可接取":
+				available_count += 1
+		if not str(quest.get("recommended_reason", "")).is_empty():
+			recommended_count += 1
+	_set_summary_text("active", "进行中 " + str(active_count))
+	_set_summary_text("available", "可接取 " + str(available_count))
+	_set_summary_text("recommended", "推荐 " + str(recommended_count))
+	_set_summary_text("archived", "归档 " + str(archived_count))
+
+func _set_summary_text(key: String, text: String) -> void:
+	if _summary_labels.has(key) and _summary_labels[key] is Label:
+		_summary_labels[key].text = text
+
+func _make_slot_style(t: Dictionary, type_color: Color, selected: bool, hover: bool) -> StyleBoxFlat:
+	var style := StyleBoxFlat.new()
+	var base: Color = t["filter_active_bg"] if selected else t["card_bg"]
+	var bg_alpha := 0.96 if selected else 0.86
+	if hover:
+		bg_alpha = minf(bg_alpha + 0.1, 1.0)
+	style.bg_color = Color(base.r, base.g, base.b, bg_alpha)
+	style.border_color = Color(type_color.r, type_color.g, type_color.b, 0.85 if selected else 0.45)
+	style.set_border_width(SIDE_LEFT, 3 if selected else 2)
+	style.set_border_width(SIDE_TOP, 1)
+	style.set_border_width(SIDE_RIGHT, 1)
+	style.set_border_width(SIDE_BOTTOM, 1)
+	style.set_corner_radius_all(int(t.get("card_corner", 8)))
+	style.content_margin_left = 12
+	style.content_margin_right = 10
+	style.content_margin_top = 8
+	style.content_margin_bottom = 8
+	style.shadow_color = Color(type_color.r, type_color.g, type_color.b, 0.16 if selected else 0.08)
+	style.shadow_size = 4 if selected else 1
+	return style
+
+func _make_detail_hero_style(t: Dictionary, type_color: Color) -> StyleBoxFlat:
+	var style := StyleBoxFlat.new()
+	var card: Color = t["card_bg"]
+	style.bg_color = Color(card.r, card.g, card.b, 0.96)
+	style.border_color = Color(type_color.r, type_color.g, type_color.b, 0.5)
+	style.set_border_width_all(1)
+	style.set_corner_radius_all(int(t.get("card_corner", 8)))
+	style.content_margin_left = 14
+	style.content_margin_right = 14
+	style.content_margin_top = 12
+	style.content_margin_bottom = 12
+	style.shadow_color = Color(type_color.r, type_color.g, type_color.b, 0.12)
+	style.shadow_size = 3
+	return style
+
+func _make_pill_style(color: Color, bg_alpha: float, border_alpha: float) -> StyleBoxFlat:
+	var style := StyleBoxFlat.new()
+	style.bg_color = Color(color.r, color.g, color.b, bg_alpha)
+	style.border_color = Color(color.r, color.g, color.b, border_alpha)
+	style.set_border_width_all(1)
+	style.set_corner_radius_all(6)
+	style.content_margin_left = 7
+	style.content_margin_right = 7
+	style.content_margin_top = 2
+	style.content_margin_bottom = 2
+	return style
+
+func _style_action_button(btn: Button, role: String, tm: Node) -> void:
+	btn.focus_mode = Control.FOCUS_NONE
+	if not tm:
+		return
+	if role == "accept":
+		var accept_styles = tm.make_accept_button_styles()
+		btn.add_theme_stylebox_override("normal", accept_styles["normal"])
+		btn.add_theme_stylebox_override("hover", accept_styles["hover"])
+		btn.add_theme_stylebox_override("pressed", accept_styles["pressed"])
+		btn.add_theme_color_override("font_color", Color(1, 1, 1))
+	else:
+		var styles = tm.make_filter_button_styles(false)
+		btn.add_theme_stylebox_override("normal", styles["normal"])
+		btn.add_theme_stylebox_override("hover", styles["hover"])
+		btn.add_theme_color_override("font_color", styles["font_color"])
+	tm.apply_font_to_button(btn, 13)
+
+func _shorten(text: String, max_chars: int) -> String:
+	if text.length() <= max_chars:
+		return text
+	return text.left(maxi(max_chars - 1, 1)) + "…"
+
+func _find_quest_entry(quests: Array, quest_id: String) -> Dictionary:
+	for quest in quests:
+		if quest is Dictionary and str(quest.get("id", "")) == quest_id:
+			return quest
+	return {}
+
+func _status_color(quest: Dictionary, t: Dictionary) -> Color:
+	match str(quest.get("status", "")):
+		"进行中":
+			return t["success_color"]
+		"可接取":
+			return t["accent_color"]
+		"已完成":
+			return t["warning_color"]
+		_:
+			return t["secondary_color"]
+
+func _on_slot_pressed(slot_idx: int) -> void:
+	if slot_idx < 0 or slot_idx >= _slot_quest_ids.size():
+		return
+	_selected_quest_id = _slot_quest_ids[slot_idx]
+	refresh_quests()
+
+func _on_filter_pressed(filter_id: String) -> void:
+	_current_filter = filter_id
+	_selected_quest_id = ""
 	_apply_filter_styles()
 	refresh_quests()
 
-func _on_quest_updated(_quest_id: String, _status: int):
+func _on_close_button_pressed() -> void:
+	hide_panel()
+
+func _on_quest_changed(_quest_id: String, _status: int = 0) -> void:
 	if visible:
 		refresh_quests()
 
-func _on_quest_completed(_quest_id: String):
+func _on_quest_completed(quest_id: String) -> void:
+	if visible:
+		refresh_quests()
+		_play_completion_feedback(quest_id)
+
+func _on_tracked_changed(_quest_id: String) -> void:
 	if visible:
 		refresh_quests()
 
-func _on_new_quest_available(_quest_id: String):
+func _on_recommendations_changed() -> void:
 	if visible:
 		refresh_quests()
 
-func _on_quest_accepted(_quest_id: String):
+func _on_daily_quests_reset() -> void:
+	if status_label:
+		status_label.text = "每日任务已刷新"
 	if visible:
 		refresh_quests()
 
-func _on_phase_changed(_new_phase):
+func _on_phase_changed(_new_phase) -> void:
 	_apply_theme()
+	if visible:
+		refresh_quests()
 
-func _update_date_label():
+func _play_completion_feedback(_quest_id: String) -> void:
+	if not title_label:
+		return
+	var tween := create_tween()
+	title_label.modulate = Color(1.0, 0.9, 0.25, 1.0)
+	tween.tween_property(title_label, "modulate", Color(1, 1, 1, 1), 0.65)
+
+func _update_date_label() -> void:
 	if not date_label:
 		return
 	if has_node("/root/WorldCalendar"):
@@ -348,274 +708,3 @@ func _update_date_label():
 		date_label.text = cal.get_day_string() + " | " + cal.get_short_date()
 	else:
 		date_label.text = ""
-
-func refresh_quests():
-	if not has_node("/root/QuestManager"):
-		if OS.is_debug_build():
-			print("[QuestPanel] QuestManager not found!")
-		return
-	if not has_node("/root/UIThemeManager"):
-		if OS.is_debug_build():
-			print("[QuestPanel] UIThemeManager not found!")
-		return
-
-	var quest_manager = get_node("/root/QuestManager")
-	var tm = get_node("/root/UIThemeManager")
-	var t = tm.get_theme()
-	var quests = quest_manager.get_quest_display_data()
-
-	if OS.is_debug_build():
-		print("[QuestPanel] Got ", quests.size(), " quests, filter=", _current_filter)
-
-	var filtered_quests: Array = []
-	if _current_filter == "全部":
-		filtered_quests = quests
-	else:
-		for quest in quests:
-			if quest.get("type", "对话") == _current_filter:
-				filtered_quests.append(quest)
-
-	if OS.is_debug_build():
-		print("[QuestPanel] Filtered: ", filtered_quests.size(), " quests")
-
-	if filtered_quests.size() == 0:
-		for i in range(MAX_CARDS):
-			_hide_card_slot(i)
-		_show_empty_message(t, tm)
-		return
-
-	var idx = 0
-	for quest in filtered_quests:
-		if idx < MAX_CARDS:
-			_update_card_data(idx, quest, tm, t)
-			_show_card_slot(idx)
-			idx += 1
-
-	for i in range(idx, MAX_CARDS):
-		_hide_card_slot(i)
-
-func _show_empty_message(t: Dictionary, tm: Node):
-	var first_slot = _card_slots[0] if _card_slots.size() > 0 else null
-	if not first_slot:
-		return
-
-	_clear_card_slot_content(first_slot, 0)
-
-	var content = first_slot.get_node_or_null("CardContent")
-	if not content:
-		return
-
-	var vbox = content.get_node_or_null("Content")
-	if not vbox:
-		return
-
-	var empty_label = Label.new()
-	empty_label.text = "暂无" + _current_filter + "任务，继续探索吧！"
-	empty_label.add_theme_color_override("font_color", t["secondary_color"])
-	empty_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	tm.apply_font_to_label(empty_label, 14)
-	vbox.add_child(empty_label)
-
-	first_slot.visible = true
-	if _card_style:
-		first_slot.add_theme_stylebox_override("panel", _card_style)
-
-func _update_card_data(slot_idx: int, quest: Dictionary, tm: Node, t: Dictionary):
-	if slot_idx >= _card_slots.size():
-		return
-
-	var slot = _card_slots[slot_idx]
-	_clear_card_slot_content(slot, slot_idx)
-
-	var content = slot.get_node_or_null("CardContent")
-	if not content:
-		return
-
-	var indicator = content.get_node_or_null("Indicator")
-	var vbox = content.get_node_or_null("Content")
-	if not indicator or not vbox:
-		return
-
-	if _card_style:
-		slot.add_theme_stylebox_override("panel", _card_style)
-
-	if quest["status"] == "已完成":
-		slot.modulate = Color(t.get("quest_complete_tint", Color(1, 1, 1, 0.6)).r, t.get("quest_complete_tint", Color(1, 1, 1, 0.6)).g, t.get("quest_complete_tint", Color(1, 1, 1, 0.6)).b, t.get("quest_complete_tint", Color(1, 1, 1, 0.6)).a)
-	else:
-		slot.modulate = Color(1, 1, 1, 1)
-
-	var status_color: Color
-	match quest["status"]:
-		"进行中":
-			status_color = t["success_color"]
-		"已完成":
-			status_color = t["warning_color"]
-		"可接取":
-			status_color = t["accent_color"]
-		_:
-			status_color = t["indicator_color"]
-
-	var dot = indicator.get_node_or_null("Dot")
-	var line = indicator.get_node_or_null("Line")
-	if dot:
-		dot.color = status_color
-	if line:
-		line.color = Color(status_color.r, status_color.g, status_color.b, 0.3)
-
-	var title_row = vbox.get_node_or_null("TitleRow")
-	var desc_lbl = vbox.get_node_or_null("Description")
-	var progress_row = vbox.get_node_or_null("ProgressRow")
-	var reward_row = vbox.get_node_or_null("RewardRow")
-	var action_btn = vbox.get_node_or_null("ActionButton")
-
-	if title_row:
-		var type_tag = title_row.get_node_or_null("TypeTag")
-		var tag_hbox = type_tag.get_node_or_null("TagHBox") if type_tag else null
-		var type_icon_lbl = tag_hbox.get_node_or_null("TypeIcon") if tag_hbox else null
-		var type_lbl = tag_hbox.get_node_or_null("TypeLabel") if tag_hbox else null
-		var title_lbl = title_row.get_node_or_null("Title")
-		var status_lbl = title_row.get_node_or_null("Status")
-
-		var type_name = quest.get("type", "对话")
-		var type_key = _type_to_key(type_name)
-
-		if type_tag and _tag_styles.has(type_key):
-			type_tag.add_theme_stylebox_override("panel", _tag_styles[type_key])
-
-		if type_icon_lbl:
-			type_icon_lbl.text = _type_icons.get(type_key, "◈")
-			type_icon_lbl.add_theme_color_override("font_color", tm.get_quest_type_color(type_key))
-			tm.apply_font_to_label(type_icon_lbl, 11)
-
-		if type_lbl:
-			type_lbl.text = type_name
-			var type_color = tm.get_quest_type_color(type_key)
-			type_lbl.add_theme_color_override("font_color", type_color)
-			tm.apply_font_to_label(type_lbl, 11)
-
-		if title_lbl:
-			title_lbl.text = quest["title"]
-			title_lbl.add_theme_color_override("font_color", t["text_color"])
-			tm.apply_font_bold_to_label(title_lbl, 16)
-
-		if status_lbl:
-			status_lbl.text = "[" + quest["status"] + "]"
-			status_lbl.add_theme_color_override("font_color", status_color)
-			tm.apply_font_to_label(status_lbl, 12)
-
-	if desc_lbl:
-		desc_lbl.text = quest["description"]
-		desc_lbl.add_theme_color_override("font_color", t["secondary_color"])
-		tm.apply_font_to_label(desc_lbl, 13)
-
-	if progress_row:
-		var progress_bar = progress_row.get_node_or_null("ProgressBar")
-		var progress_text = progress_row.get_node_or_null("ProgressText")
-
-		if progress_bar:
-			if _progress_bg_style:
-				progress_bar.add_theme_stylebox_override("background", _progress_bg_style)
-			if _progress_fill_style:
-				progress_bar.add_theme_stylebox_override("fill", _progress_fill_style)
-
-			var progress_parts = quest["progress"].split("/")
-			var current_val = int(progress_parts[0]) if progress_parts.size() > 0 else 0
-			var max_val = int(progress_parts[1]) if progress_parts.size() > 1 else 1
-			progress_bar.value = clampf(float(current_val) / float(maxi(max_val, 1)) * 100.0, 0.0, 100.0)
-
-		if progress_text:
-			progress_text.text = quest["progress"]
-			progress_text.add_theme_color_override("font_color", t["accent_color"])
-			tm.apply_font_to_label(progress_text, 12)
-
-	if reward_row:
-		var reward_lbl = reward_row.get_node_or_null("RewardLabel")
-		if quest["reward"] != "":
-			reward_row.visible = true
-			if reward_lbl:
-				reward_lbl.text = quest["reward"]
-				reward_lbl.add_theme_color_override("font_color", t["warning_color"])
-				tm.apply_font_to_label(reward_lbl, 12)
-		else:
-			reward_row.visible = false
-
-	if action_btn:
-		if quest["status"] == "可接取":
-			action_btn.visible = true
-			action_btn.text = "接取任务"
-			if _accept_normal_style:
-				action_btn.add_theme_stylebox_override("normal", _accept_normal_style)
-			if _accept_hover_style:
-				action_btn.add_theme_stylebox_override("hover", _accept_hover_style)
-			if _accept_pressed_style:
-				action_btn.add_theme_stylebox_override("pressed", _accept_pressed_style)
-			action_btn.add_theme_color_override("font_color", Color.WHITE)
-			tm.apply_font_to_button(action_btn, 13)
-			var quest_id = quest.get("id", "")
-			if action_btn.pressed.is_connected(_on_accept_quest):
-				action_btn.pressed.disconnect(_on_accept_quest)
-			action_btn.pressed.connect(_on_accept_quest.bind(quest_id))
-			action_btn.mouse_entered.connect(_on_accept_btn_hover.bind(action_btn))
-			action_btn.mouse_exited.connect(_on_accept_btn_hover_end.bind(action_btn))
-		elif quest["status"] == "已完成":
-			action_btn.visible = true
-			action_btn.text = "✓ 已完成"
-			action_btn.disabled = true
-			var done_style = StyleBoxFlat.new()
-			done_style.bg_color = Color(t["secondary_color"].r, t["secondary_color"].g, t["secondary_color"].b, 0.3)
-			done_style.set_corner_radius_all(6)
-			done_style.set_border_width_all(1)
-			done_style.border_color = Color(t["secondary_color"].r, t["secondary_color"].g, t["secondary_color"].b, 0.2)
-			action_btn.add_theme_stylebox_override("disabled", done_style)
-			action_btn.add_theme_color_override("font_disabled_color", Color(t["secondary_color"].r, t["secondary_color"].g, t["secondary_color"].b, 0.6))
-			tm.apply_font_to_button(action_btn, 13)
-		else:
-			action_btn.visible = false
-
-func _clear_card_slot_content(slot: PanelContainer, _slot_idx: int):
-	var content = slot.get_node_or_null("CardContent")
-	if not content:
-		return
-
-	var vbox = content.get_node_or_null("Content")
-	if vbox:
-		for child in vbox.get_children():
-			child.queue_free()
-
-	var indicator = content.get_node_or_null("Indicator")
-	if indicator:
-		var dot = indicator.get_node_or_null("Dot")
-		var line = indicator.get_node_or_null("Line")
-		if dot:
-			dot.color = Color(1, 1, 1, 0)
-		if line:
-			line.color = Color(1, 1, 1, 0)
-
-func _show_card_slot(slot_idx: int):
-	if slot_idx < _card_slots.size():
-		_card_slots[slot_idx].visible = true
-
-func _hide_card_slot(slot_idx: int):
-	if slot_idx < _card_slots.size():
-		_card_slots[slot_idx].visible = false
-
-func _on_accept_btn_hover(btn: Button):
-	var tween = create_tween()
-	tween.tween_property(btn, "scale", Vector2(1.05, 1.05), 0.1)
-
-func _on_accept_btn_hover_end(btn: Button):
-	var tween = create_tween()
-	tween.tween_property(btn, "scale", Vector2(1.0, 1.0), 0.1)
-
-func _type_to_key(type_name: String) -> String:
-	match type_name:
-		"对话": return "dialogue"
-		"探索": return "exploration"
-		"收集": return "collection"
-		"日常": return "daily"
-		"隐藏": return "hidden"
-		_: return "dialogue"
-
-func _on_accept_quest(quest_id: String):
-	if has_node("/root/QuestManager"):
-		get_node("/root/QuestManager").accept_quest(quest_id)

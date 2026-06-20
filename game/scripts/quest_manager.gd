@@ -6,14 +6,25 @@ enum QuestType { DIALOGUE, EXPLORATION, COLLECTION, DAILY, HIDDEN, STORY }
 var _quests: Dictionary = {}
 var _dialogue_counts: Dictionary = {}
 var _interaction_counts: Dictionary = {}
+var _daily_dialogue_counts: Dictionary = {}
+var _daily_interaction_counts: Dictionary = {}
+var _tracked_quest_id: String = ""
+var _recommendations: Dictionary = {}
 
 signal quest_updated(quest_id: String, status: int)
 signal quest_completed(quest_id: String)
 signal new_quest_available(quest_id: String)
 signal quest_accepted(quest_id: String)
+signal quest_tracked_changed(quest_id: String)
+signal quest_progressed(quest_id: String, progress: int, target: int)
+signal daily_quests_reset()
+signal quest_recommendations_changed()
 
 func _ready():
 	_init_quests()
+	_apply_default_quest_metadata()
+	_connect_world_signals()
+	call_deferred("refresh_contextual_recommendations")
 
 func _init_quests():
 	_quests = {
@@ -270,16 +281,165 @@ func _init_quests():
 		},
 	}
 
+func _connect_world_signals() -> void:
+	if has_node("/root/WorldCalendar"):
+		var cal = get_node("/root/WorldCalendar")
+		if not cal.day_advanced.is_connected(_on_day_advanced):
+			cal.day_advanced.connect(_on_day_advanced)
+	if has_node("/root/DayNightManager"):
+		var dnm = get_node("/root/DayNightManager")
+		if dnm.has_signal("phase_changed") and not dnm.phase_changed.is_connected(_on_phase_changed):
+			dnm.phase_changed.connect(_on_phase_changed)
+
+func _apply_default_quest_metadata() -> void:
+	for quest_id in _quests:
+		var quest: Dictionary = _quests[quest_id]
+		quest["priority"] = int(quest.get("priority", _default_priority_for_quest(quest)))
+		quest["target_hint"] = str(quest.get("target_hint", _default_target_hint_for_quest(quest)))
+		quest["target_area"] = str(quest.get("target_area", _default_target_area_for_quest(quest)))
+		quest["target_action"] = str(quest.get("target_action", _default_target_action_for_quest(quest)))
+		quest["completed_day"] = int(quest.get("completed_day", 0))
+		quest["recommended_reason"] = str(quest.get("recommended_reason", ""))
+
+func _default_priority_for_quest(quest: Dictionary) -> int:
+	match int(quest.get("type", QuestType.DIALOGUE)):
+		QuestType.STORY:
+			return 10
+		QuestType.HIDDEN:
+			return 25
+		QuestType.DAILY:
+			return 60
+		_:
+			return 40
+
+func _default_target_hint_for_quest(quest: Dictionary) -> String:
+	var req: Dictionary = quest.get("requirement", {})
+	match str(req.get("type", "")):
+		"any_chat":
+			return "找任意 NPC 对话"
+		"chat":
+			return "找" + _npc_display_name(str(req.get("npc_id", quest.get("npc_id", "")))) + "对话"
+		"all_chat":
+			return "依次拜访主要 NPC"
+		"interaction":
+			return _interaction_display_hint(str(req.get("interaction_type", "")))
+		"unique_interactions":
+			return "探索不同交互点"
+	return "继续探索新港"
+
+func _default_target_area_for_quest(quest: Dictionary) -> String:
+	var req: Dictionary = quest.get("requirement", {})
+	match str(req.get("type", "")):
+		"chat":
+			return _npc_area(str(req.get("npc_id", quest.get("npc_id", ""))))
+		"interaction":
+			return _interaction_area(str(req.get("interaction_type", "")))
+		"unique_interactions":
+			if str(quest.get("id", "")).begins_with("story_ch1_mystery_hint"):
+				return "apartment"
+	return ""
+
+func _default_target_action_for_quest(quest: Dictionary) -> String:
+	var area := _default_target_area_for_quest(quest)
+	if area.is_empty():
+		return ""
+	return "前往" + _area_display_name(area)
+
+func _npc_display_name(npc_id: String) -> String:
+	match npc_id:
+		"zhang_san":
+			return "张三"
+		"li_si":
+			return "李四"
+		"wang_wu":
+			return "王五"
+		"chen_xi":
+			return "陈曦"
+		"zhao_lin":
+			return "赵霖"
+		"sun_yue":
+			return "孙悦"
+		"liu_feng":
+			return "刘风"
+		"he_zhen":
+			return "何真"
+		_:
+			return "NPC"
+
+func _npc_area(npc_id: String) -> String:
+	match npc_id:
+		"zhang_san", "li_si", "wang_wu":
+			return "office"
+		"chen_xi", "zhao_lin", "sun_yue", "liu_feng", "he_zhen":
+			return "street"
+		_:
+			return ""
+
+func _interaction_area(interaction_type: String) -> String:
+	match interaction_type:
+		"balcony", "tv", "talisman", "water_plant", "fridge", "sleep", "night_event":
+			return "apartment"
+		"forum":
+			return "office"
+		"visit_street":
+			return "street"
+		_:
+			return ""
+
+func _interaction_display_hint(interaction_type: String) -> String:
+	match interaction_type:
+		"balcony":
+			return "去公寓阳台"
+		"tv":
+			return "查看公寓电视"
+		"talisman":
+			return "查看公寓符纸"
+		"water_plant":
+			return "给公寓植物浇水"
+		"fridge":
+			return "检查公寓冰箱"
+		"sleep":
+			return "回公寓睡觉"
+		"night_event":
+			return "深夜查看异常迹象"
+		"forum":
+			return "使用办公室电脑论坛"
+		"visit_street":
+			return "前往街区"
+		_:
+			return "探索交互点"
+
+func _area_display_name(area_id: String) -> String:
+	match area_id:
+		"office":
+			return "办公室"
+		"street":
+			return "街区"
+		"apartment":
+			return "公寓"
+		"underground":
+			return "地下站台"
+		"anomaly":
+			return "异常空间"
+		_:
+			return "目标区域"
+
 func on_dialogue_with_npc(npc_id: String) -> void:
 	if not _dialogue_counts.has(npc_id):
 		_dialogue_counts[npc_id] = 0
 	_dialogue_counts[npc_id] += 1
+	if not _daily_dialogue_counts.has(npc_id):
+		_daily_dialogue_counts[npc_id] = 0
+	_daily_dialogue_counts[npc_id] += 1
 	_check_all_quests()
 
 func on_interaction(interaction_type: String) -> void:
 	if not _interaction_counts.has(interaction_type):
 		_interaction_counts[interaction_type] = 0
 	_interaction_counts[interaction_type] += 1
+	if not _daily_interaction_counts.has(interaction_type):
+		_daily_interaction_counts[interaction_type] = 0
+	_daily_interaction_counts[interaction_type] += 1
 	_check_all_quests()
 
 func accept_quest(quest_id: String) -> bool:
@@ -303,18 +463,22 @@ func _check_all_quests() -> void:
 				quest["status"] = QuestStatus.AVAILABLE
 				new_quest_available.emit(quest_id)
 				_log_event("📋 新任务可用: " + quest["title"])
+				refresh_contextual_recommendations()
 
 		if quest["status"] == QuestStatus.ACTIVE:
 			var new_progress = _calculate_progress(quest)
 			if new_progress != quest["progress"]:
 				quest["progress"] = new_progress
 				quest_updated.emit(quest_id, quest["status"])
+				quest_progressed.emit(quest_id, new_progress, int(quest.get("requirement", {}).get("count", 1)))
 
 			if _check_completion(quest):
 				quest["status"] = QuestStatus.COMPLETED
+				quest["completed_day"] = _get_current_day()
 				quest_completed.emit(quest_id)
 				_log_event("🎉 任务完成: " + quest["title"])
 				_on_quest_reward(quest)
+				refresh_contextual_recommendations()
 
 func _check_unlock_condition(quest: Dictionary) -> bool:
 	if not quest.has("unlock_condition"):
@@ -343,25 +507,27 @@ func _check_unlock_condition(quest: Dictionary) -> bool:
 func _calculate_progress(quest: Dictionary) -> int:
 	var req = quest["requirement"]
 	var target_count = req.get("count", 1)
+	var dialogue_counts := _daily_dialogue_counts if quest.get("daily", false) else _dialogue_counts
+	var interaction_counts := _daily_interaction_counts if quest.get("daily", false) else _interaction_counts
 	match req["type"]:
 		"any_chat":
 			var total = 0
-			for npc_id in _dialogue_counts:
-				total += _dialogue_counts[npc_id]
+			for npc_id in dialogue_counts:
+				total += dialogue_counts[npc_id]
 			return mini(total, target_count)
 		"chat":
 			var npc_id = req.get("npc_id", "")
-			return mini(_dialogue_counts.get(npc_id, 0), target_count)
+			return mini(dialogue_counts.get(npc_id, 0), target_count)
 		"all_chat":
 			var min_count = 999
 			for npc_id in ["zhang_san", "li_si", "wang_wu", "chen_xi", "zhao_lin", "sun_yue", "liu_feng", "he_zhen"]:
-				min_count = mini(min_count, _dialogue_counts.get(npc_id, 0))
+				min_count = mini(min_count, dialogue_counts.get(npc_id, 0))
 			return mini(min_count, target_count)
 		"interaction":
 			var itype = req.get("interaction_type", "")
-			return mini(_interaction_counts.get(itype, 0), target_count)
+			return mini(interaction_counts.get(itype, 0), target_count)
 		"unique_interactions":
-			return mini(_interaction_counts.size(), target_count)
+			return mini(interaction_counts.size(), target_count)
 	return 0
 
 func _check_completion(quest: Dictionary) -> bool:
@@ -369,30 +535,129 @@ func _check_completion(quest: Dictionary) -> bool:
 	var target_count = req.get("count", 1)
 	return _calculate_progress(quest) >= target_count
 
-func _on_quest_reward(quest: Dictionary) -> void:
-	if quest.has("rewards") and quest["rewards"].has("affinity"):
-		var affinity_rewards = quest["rewards"]["affinity"]
+func apply_reward_payload(rewards: Dictionary, _source_npc_id: String = "") -> Array:
+	var summaries: Array = []
+	if rewards.has("affinity"):
+		var affinity_rewards = rewards["affinity"]
 		for npc_id in affinity_rewards:
 			if has_node("/root/APIClient"):
-				get_node("/root/APIClient").add_affinity(npc_id, affinity_rewards[npc_id])
-	if quest.has("rewards") and quest["rewards"].has("exp"):
-		var exp_reward = quest["rewards"]["exp"]
+				var amount := int(affinity_rewards[npc_id])
+				get_node("/root/APIClient").add_affinity(npc_id, amount)
+				summaries.append("好感度+" + str(amount))
+	if rewards.has("exp"):
+		var exp_reward = rewards["exp"]
 		if has_node("/root/GameManager"):
 			get_node("/root/GameManager").gain_exp(float(exp_reward))
-	if quest.has("rewards") and quest["rewards"].has("anomaly"):
-		var anomaly_reward = quest["rewards"]["anomaly"]
+			summaries.append("经验+" + str(int(exp_reward)))
+	if rewards.has("anomaly"):
+		var anomaly_reward = rewards["anomaly"]
 		if has_node("/root/GameManager"):
 			get_node("/root/GameManager").increase_anomaly(float(anomaly_reward))
-	if quest.get("daily", false):
-		quest["status"] = QuestStatus.AVAILABLE
-		quest["progress"] = 0
+			summaries.append("异常感知+" + str(int(anomaly_reward)))
+	if rewards.has("items"):
+		var item_rewards: Dictionary = rewards["items"]
+		if has_node("/root/GameManager"):
+			var gm = get_node("/root/GameManager")
+			for item_id in item_rewards:
+				var amount := int(item_rewards[item_id])
+				gm.add_item(str(item_id), amount)
+				var db: Dictionary = gm.ITEM_DATABASE.get(str(item_id), {})
+				summaries.append(db.get("name", str(item_id)) + "x" + str(amount))
+	if rewards.has("currency") and has_node("/root/GameManager"):
+		var currency_reward := int(rewards["currency"])
+		get_node("/root/GameManager").add_currency(currency_reward)
+		summaries.append("信用点+" + str(currency_reward))
+	if rewards.has("flags"):
+		var flags: Dictionary = rewards["flags"]
+		for flag_name in flags:
+			if has_node("/root/GameManager"):
+				get_node("/root/GameManager").set_flag(str(flag_name), flags[flag_name])
+			if has_node("/root/StoryManager"):
+				get_node("/root/StoryManager").set_story_flag(str(flag_name), flags[flag_name])
+	if rewards.has("story_step") and has_node("/root/StoryManager"):
+		get_node("/root/StoryManager").complete_step(str(rewards["story_step"]))
+	return summaries
+
+func _on_quest_reward(quest: Dictionary) -> void:
+	var summaries := apply_reward_payload(quest.get("rewards", {}), str(quest.get("npc_id", "")))
+	if not summaries.is_empty():
+		_log_event("🎁 任务奖励: " + "，".join(summaries))
 
 func reset_daily_quests() -> void:
+	_daily_dialogue_counts.clear()
+	_daily_interaction_counts.clear()
 	for quest_id in _quests:
 		var quest = _quests[quest_id]
-		if quest.get("daily", false) and quest["status"] == QuestStatus.COMPLETED:
+		if quest.get("daily", false):
 			quest["status"] = QuestStatus.AVAILABLE
 			quest["progress"] = 0
+			quest_updated.emit(quest_id, quest["status"])
+	daily_quests_reset.emit()
+	_log_event("📅 每日任务已刷新")
+	refresh_contextual_recommendations()
+
+func track_quest(quest_id: String) -> bool:
+	if not _quests.has(quest_id):
+		return false
+	var quest: Dictionary = _quests[quest_id]
+	if int(quest.get("status", QuestStatus.LOCKED)) == QuestStatus.LOCKED:
+		return false
+	_tracked_quest_id = quest_id
+	quest_tracked_changed.emit(_tracked_quest_id)
+	return true
+
+func untrack_quest() -> void:
+	_tracked_quest_id = ""
+	quest_tracked_changed.emit(_tracked_quest_id)
+
+func get_tracked_quest_display_data() -> Dictionary:
+	if _tracked_quest_id.is_empty() or not _quests.has(_tracked_quest_id):
+		return {}
+	return _make_quest_view_entry(_tracked_quest_id, _quests[_tracked_quest_id])
+
+func get_quest_view_data(filter: String = "all", include_completed: bool = false) -> Array:
+	var normalized_filter := _normalize_quest_filter(filter)
+	var result: Array = []
+	for quest_id in _quests:
+		var quest: Dictionary = _quests[quest_id]
+		var status := int(quest.get("status", QuestStatus.LOCKED))
+		if status == QuestStatus.LOCKED:
+			continue
+		if normalized_filter == "completed":
+			if status != QuestStatus.COMPLETED:
+				continue
+		elif status == QuestStatus.COMPLETED and not include_completed:
+			continue
+		if normalized_filter != "all" and normalized_filter != "completed":
+			if _type_to_key(int(quest.get("type", QuestType.DIALOGUE))) != normalized_filter:
+				continue
+		result.append(_make_quest_view_entry(quest_id, quest))
+	result.sort_custom(_sort_quest_entries)
+	return result
+
+func get_completed_archive_data() -> Array:
+	var result: Array = []
+	for quest_id in _quests:
+		var quest: Dictionary = _quests[quest_id]
+		if int(quest.get("status", QuestStatus.LOCKED)) == QuestStatus.COMPLETED:
+			result.append(_make_quest_view_entry(quest_id, quest))
+	result.sort_custom(_sort_completed_quest_entries)
+	return result
+
+func transition_to_quest_target(quest_id: String = "") -> bool:
+	var target_id := quest_id if not quest_id.is_empty() else _tracked_quest_id
+	if target_id.is_empty() or not _quests.has(target_id):
+		return false
+	var area_id := str(_quests[target_id].get("target_area", ""))
+	if area_id.is_empty():
+		return false
+	var gm = get_node_or_null("/root/GameManager")
+	if gm and not area_id in gm.discovered_areas:
+		return false
+	var sm = get_node_or_null("/root/SceneManager")
+	if sm and sm.has_method("transition_to_area"):
+		return sm.transition_to_area(area_id)
+	return false
 
 func get_active_quests() -> Array:
 	var result = []
@@ -416,23 +681,195 @@ func get_all_quests() -> Array:
 	return result
 
 func get_quest_display_data() -> Array:
-	var result = []
+	return get_quest_view_data("all", true)
+
+func refresh_contextual_recommendations() -> void:
+	_recommendations.clear()
+	var context := _get_world_recommendation_context()
 	for quest_id in _quests:
-		var quest = _quests[quest_id]
-		if quest["status"] == QuestStatus.LOCKED:
+		var quest: Dictionary = _quests[quest_id]
+		if int(quest.get("status", QuestStatus.LOCKED)) == QuestStatus.LOCKED:
+			quest["recommended_reason"] = ""
 			continue
-		var req = quest["requirement"]
-		var target = req.get("count", 1)
-		result.append({
-			"id": quest["id"],
-			"title": quest["title"],
-			"description": quest["description"],
-			"progress": str(quest["progress"]) + "/" + str(target),
-			"status": _status_to_text(quest["status"]),
-			"reward": quest.get("reward_text", ""),
-			"type": _type_to_text(quest.get("type", QuestType.DIALOGUE)),
-		})
-	return result
+		if int(quest.get("status", QuestStatus.LOCKED)) == QuestStatus.COMPLETED:
+			quest["recommended_reason"] = ""
+			continue
+		var reason := _build_recommendation_reason(quest, context)
+		quest["recommended_reason"] = reason
+		if not reason.is_empty():
+			_recommendations[quest_id] = reason
+	quest_recommendations_changed.emit()
+
+func _make_quest_view_entry(quest_id: String, quest: Dictionary) -> Dictionary:
+	var req: Dictionary = quest.get("requirement", {})
+	var target := int(req.get("count", 1))
+	var progress := int(quest.get("progress", 0))
+	var qtype := int(quest.get("type", QuestType.DIALOGUE))
+	var status := int(quest.get("status", QuestStatus.LOCKED))
+	var type_key := _type_to_key(qtype)
+	return {
+		"id": quest_id,
+		"title": str(quest.get("title", quest_id)),
+		"description": str(quest.get("description", "")),
+		"progress_value": progress,
+		"progress_target": target,
+		"progress": str(progress) + "/" + str(target),
+		"progress_ratio": clampf(float(progress) / float(maxi(target, 1)), 0.0, 1.0),
+		"status": _status_to_text(status),
+		"status_value": status,
+		"reward": str(quest.get("reward_text", "")),
+		"rewards": quest.get("rewards", {}).duplicate(true),
+		"type": _type_to_text(qtype),
+		"type_key": type_key,
+		"target_hint": str(quest.get("target_hint", "")),
+		"target_area": str(quest.get("target_area", "")),
+		"target_action": str(quest.get("target_action", "")),
+		"tracked": quest_id == _tracked_quest_id,
+		"priority": int(quest.get("priority", 50)),
+		"completed_day": int(quest.get("completed_day", 0)),
+		"recommended_reason": str(quest.get("recommended_reason", "")),
+		"daily": bool(quest.get("daily", false)),
+	}
+
+func _normalize_quest_filter(filter: String) -> String:
+	match filter:
+		"", "all", "全部":
+			return "all"
+		"dialogue", "对话":
+			return "dialogue"
+		"exploration", "探索":
+			return "exploration"
+		"collection", "收集":
+			return "collection"
+		"daily", "日常":
+			return "daily"
+		"hidden", "隐藏":
+			return "hidden"
+		"story", "剧情":
+			return "story"
+		"completed", "已完成", "归档":
+			return "completed"
+		_:
+			return filter
+
+func _sort_quest_entries(a: Dictionary, b: Dictionary) -> bool:
+	var tracked_delta := _tracked_rank(a) - _tracked_rank(b)
+	if tracked_delta != 0:
+		return tracked_delta < 0
+	var type_delta := _quest_type_rank(a) - _quest_type_rank(b)
+	if type_delta != 0:
+		return type_delta < 0
+	var status_delta := _quest_status_rank(a) - _quest_status_rank(b)
+	if status_delta != 0:
+		return status_delta < 0
+	var priority_delta := int(a.get("priority", 50)) - int(b.get("priority", 50))
+	if priority_delta != 0:
+		return priority_delta < 0
+	return str(a.get("id", "")) < str(b.get("id", ""))
+
+func _sort_completed_quest_entries(a: Dictionary, b: Dictionary) -> bool:
+	var day_delta := int(b.get("completed_day", 0)) - int(a.get("completed_day", 0))
+	if day_delta != 0:
+		return day_delta < 0
+	return str(a.get("id", "")) < str(b.get("id", ""))
+
+func _tracked_rank(entry: Dictionary) -> int:
+	return 0 if bool(entry.get("tracked", false)) else 1
+
+func _quest_type_rank(entry: Dictionary) -> int:
+	match str(entry.get("type_key", "")):
+		"story":
+			return 0
+		"hidden":
+			return 1
+		_:
+			return 2
+
+func _quest_status_rank(entry: Dictionary) -> int:
+	match int(entry.get("status_value", QuestStatus.LOCKED)):
+		QuestStatus.ACTIVE:
+			return 0
+		QuestStatus.AVAILABLE:
+			return 1
+		QuestStatus.COMPLETED:
+			return 2
+		_:
+			return 9
+
+func _type_to_key(qtype: int) -> String:
+	match qtype:
+		QuestType.DIALOGUE:
+			return "dialogue"
+		QuestType.EXPLORATION:
+			return "exploration"
+		QuestType.COLLECTION:
+			return "collection"
+		QuestType.DAILY:
+			return "daily"
+		QuestType.HIDDEN:
+			return "hidden"
+		QuestType.STORY:
+			return "story"
+		_:
+			return "other"
+
+func _get_world_recommendation_context() -> Dictionary:
+	var context := {
+		"month_id": "",
+		"weather_id": "",
+		"weather_name": "",
+		"anomaly_level": 0.0,
+		"phase": "",
+	}
+	var cal = get_node_or_null("/root/WorldCalendar")
+	if cal and cal.has_method("get_calendar_context"):
+		var cal_context: Dictionary = cal.get_calendar_context()
+		context["month_id"] = str(cal_context.get("month_id", ""))
+	var dwg = get_node_or_null("/root/DailyWorldGenerator")
+	if dwg:
+		if dwg.has_method("get_daily_weather"):
+			var weather: Dictionary = dwg.get_daily_weather()
+			context["weather_id"] = str(weather.get("id", ""))
+			context["weather_name"] = str(weather.get("name", ""))
+		if dwg.has_method("get_daily_anomaly_level"):
+			context["anomaly_level"] = float(dwg.get_daily_anomaly_level())
+	var dnm = get_node_or_null("/root/DayNightManager")
+	if dnm:
+		context["phase"] = str(dnm.current_phase)
+	return context
+
+func _build_recommendation_reason(quest: Dictionary, context: Dictionary) -> String:
+	var qtype := int(quest.get("type", QuestType.DIALOGUE))
+	var target_area := str(quest.get("target_area", ""))
+	var target_hint := str(quest.get("target_hint", ""))
+	var month_id := str(context.get("month_id", ""))
+	var weather_id := str(context.get("weather_id", ""))
+	var anomaly_level := float(context.get("anomaly_level", 0.0))
+	var is_rain_context := month_id == "rain" or weather_id in ["rain", "thunderstorm"]
+	var is_ghost_context := month_id == "ghost" or anomaly_level >= 0.48
+	if qtype == QuestType.DAILY and is_rain_context:
+		return "雨夜动态推荐"
+	if qtype == QuestType.HIDDEN and is_ghost_context:
+		return "幽月异常推荐"
+	if qtype == QuestType.STORY and is_ghost_context:
+		return "DATAWHALE 观测推荐"
+	if target_area == "apartment" and target_hint.find("阳台") != -1 and is_rain_context:
+		return "雨夜适合观察阳台"
+	if target_hint.find("符纸") != -1 and is_ghost_context:
+		return "异常信号升高"
+	return ""
+
+func _on_day_advanced(_new_day: int) -> void:
+	reset_daily_quests()
+
+func _on_phase_changed(_new_phase) -> void:
+	_check_all_quests()
+	refresh_contextual_recommendations()
+
+func _get_current_day() -> int:
+	if has_node("/root/WorldCalendar"):
+		return int(get_node("/root/WorldCalendar").current_day)
+	return 0
 
 func _status_to_text(status: int) -> String:
 	match status:
@@ -458,23 +895,37 @@ func get_save_data() -> Dictionary:
 		quests_data[quest_id] = {
 			"status": quest["status"],
 			"progress": quest["progress"],
+			"completed_day": int(quest.get("completed_day", 0)),
 		}
 	return {
 		"quests": quests_data,
 		"dialogue_counts": _dialogue_counts.duplicate(),
 		"interaction_counts": _interaction_counts.duplicate(),
+		"daily_dialogue_counts": _daily_dialogue_counts.duplicate(),
+		"daily_interaction_counts": _daily_interaction_counts.duplicate(),
+		"tracked_quest_id": _tracked_quest_id,
 	}
 
 func load_save_data(data: Dictionary) -> void:
+	_apply_default_quest_metadata()
 	if data.has("quests"):
 		for quest_id in data["quests"]:
 			if _quests.has(quest_id):
 				_quests[quest_id]["status"] = data["quests"][quest_id].get("status", QuestStatus.LOCKED)
 				_quests[quest_id]["progress"] = data["quests"][quest_id].get("progress", 0)
+				_quests[quest_id]["completed_day"] = int(data["quests"][quest_id].get("completed_day", 0))
 	if data.has("dialogue_counts"):
 		_dialogue_counts = data["dialogue_counts"].duplicate()
 	if data.has("interaction_counts"):
 		_interaction_counts = data["interaction_counts"].duplicate()
+	if data.has("daily_dialogue_counts"):
+		_daily_dialogue_counts = data["daily_dialogue_counts"].duplicate()
+	if data.has("daily_interaction_counts"):
+		_daily_interaction_counts = data["daily_interaction_counts"].duplicate()
+	_tracked_quest_id = str(data.get("tracked_quest_id", ""))
+	if not _quests.has(_tracked_quest_id):
+		_tracked_quest_id = ""
+	refresh_contextual_recommendations()
 
 func _log_event(message: String) -> void:
 	if has_node("/root/LogPanel"):

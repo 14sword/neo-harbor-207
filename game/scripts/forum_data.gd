@@ -112,9 +112,14 @@ func _post(title: String, author: String, time: String, content: String) -> Dict
 	}
 
 func get_posts(category: String, phase: String) -> Array:
+	var result = []
 	if _posts.has(category) and _posts[category].has(phase):
-		return _posts[category][phase]
-	return []
+		result.append_array(_posts[category][phase])
+	if _tree_has_node("/root/DailyWorldGenerator"):
+		var dwg = _tree_get_node("/root/DailyWorldGenerator")
+		if dwg and dwg.has_method("get_daily_forum_posts"):
+			result.append_array(dwg.get_daily_forum_posts(category, phase))
+	return result
 
 func get_phase_key() -> String:
 	if _tree_has_node("/root/DayNightManager"):

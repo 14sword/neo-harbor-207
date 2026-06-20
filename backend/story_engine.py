@@ -1,7 +1,25 @@
+import re
 from typing import Dict, List, Optional
 from hello_agents_llm import HelloAgentsLLM
 from config import NPC_CONFIGS
 from logger import logger
+
+
+WORLD_CONTEXT = (
+    "新港·207是被维度裂缝影响的赛博朋克小镇。DATAWHALE维护城市数据基础设施，"
+    "城市AI中枢'系统之声'开始产生自主意识，办公室与街区的日常生活正被异常现象悄悄改写。"
+)
+
+SCENE_LABELS = {
+    "office": "DATAWHALE办公室",
+    "street": "新港街区",
+}
+
+PERIOD_LABELS = {
+    "day": "白天",
+    "dusk": "黄昏",
+    "night": "夜晚",
+}
 
 
 class StoryEngine:
@@ -30,14 +48,27 @@ class StoryEngine:
             "title": "诸天交汇",
             "theme": "多维度交汇，城市危机",
             "key_events": ["维度交汇", "全NPC卷入", "城市异变", "最终抉择前奏"],
-            "npcs": [],
+            "npcs": list(NPC_CONFIGS.keys()),
         },
         "ch5": {
             "title": "抉择时刻",
             "theme": "最终选择，决定小镇命运",
             "key_events": ["真相揭示", "最终选择", "多结局"],
-            "npcs": [],
+            "npcs": list(NPC_CONFIGS.keys()),
         },
+    }
+
+    CHAPTER_ALIASES = {
+        "ch1_arrival": "ch1",
+        "arrival": "ch1",
+        "ch2_dark_data": "ch2",
+        "dark_data": "ch2",
+        "ch3_rift_appears": "ch3",
+        "rift_appears": "ch3",
+        "ch4_convergence": "ch4",
+        "convergence": "ch4",
+        "ch5_decision": "ch5",
+        "decision": "ch5",
     }
 
     def __init__(self):
@@ -45,13 +76,18 @@ class StoryEngine:
 
     def generate_chapter_content(self, chapter_id: str, player_class: str = "cipher",
                                   player_name: str = "玩家", context: Dict = None) -> Dict:
-        template = self.CHAPTER_TEMPLATES.get(chapter_id)
+        requested_chapter_id = chapter_id
+        canonical_chapter_id = self.normalize_chapter_id(chapter_id)
+        template = self.CHAPTER_TEMPLATES.get(canonical_chapter_id)
         if not template:
-            return {"error": f"Chapter {chapter_id} not found"}
+            return {"error": f"Chapter {chapter_id} not found", "chapter_id": chapter_id}
 
         context = context or {}
         anomaly_level = context.get("anomaly_level", 0)
-        completed_chapters = context.get("completed_chapters", [])
+        completed_chapters = [
+            self.normalize_chapter_id(chapter) or str(chapter)
+            for chapter in context.get("completed_chapters", [])
+        ]
 
         messages = [
             {"role": "system", "content": self._get_story_system_prompt()},
@@ -63,17 +99,19 @@ class StoryEngine:
         try:
             content = self.llm.invoke(messages, quality="high")
             return {
-                "chapter_id": chapter_id,
+                "chapter_id": canonical_chapter_id,
+                "requested_chapter_id": requested_chapter_id,
                 "title": template["title"],
                 "content": content,
                 "generated": True,
             }
         except Exception as e:
-            logger.error(f"Story generation failed for {chapter_id}: {e}")
+            logger.error(f"Story generation failed for {requested_chapter_id}: {e}")
             return {
-                "chapter_id": chapter_id,
+                "chapter_id": canonical_chapter_id,
+                "requested_chapter_id": requested_chapter_id,
                 "title": template["title"],
-                "content": self._get_fallback_content(chapter_id),
+                "content": self._get_fallback_content(canonical_chapter_id),
                 "generated": False,
             }
 
@@ -86,12 +124,15 @@ class StoryEngine:
             {"role": "system", "content": (
                 "你是一位赛博朋克世界观设定师。请为以下NPC生成详细的背景故事，"
                 "包括：过去经历、来到新港·207的原因、隐藏的秘密、与维度裂缝的关联。"
-                "故事风格：赛博朋克+神秘+悬疑。字数300-500字。"
+                f"故事风格：赛博朋克+神秘+悬疑。世界上下文：{WORLD_CONTEXT}。字数300-500字。"
             )},
             {"role": "user", "content": (
                 f"NPC名称：{npc_config['name']}\n"
                 f"职业：{npc_config['role']}\n"
+                f"所属scene：{self._format_scene(npc_config.get('scene', 'office'))}\n"
                 f"性格：{npc_config['personality']}\n"
+                f"routine：{self._format_routine(npc_config.get('routine', {}))}\n"
+                f"社交关系：{self._format_social_links(npc_config.get('social_links', {}))}\n"
                 f"已有背景：{npc_config.get('backstory', '无')}\n"
                 f"请生成详细背景故事。"
             )}
@@ -114,10 +155,13 @@ class StoryEngine:
             {"role": "system", "content": (
                 "你是一位游戏对话设计师。请为以下NPC生成3个对话分支选项，"
                 "每个选项包含：选项文本、NPC可能的回应方向、好感度影响。"
-                "格式为JSON数组。"
+                f"格式为JSON数组。世界上下文：{WORLD_CONTEXT}"
             )},
             {"role": "user", "content": (
                 f"NPC：{npc_config['name']}（{npc_config['role']}）\n"
+                f"所属scene：{self._format_scene(npc_config.get('scene', 'office'))}\n"
+                f"性格：{npc_config['personality']}\n"
+                f"routine：{self._format_routine(npc_config.get('routine', {}))}\n"
                 f"玩家职业：{player_class}\n"
                 f"当前话题：{current_topic}\n"
                 f"好感度等级：{affinity_level}/5\n"
@@ -158,6 +202,7 @@ class StoryEngine:
     def _get_story_system_prompt(self) -> str:
         return (
             "你是'新港·207'游戏的主线剧情编剧。世界观设定：\n"
+            f"- {WORLD_CONTEXT}\n"
             "- 时代：N.H.207年，新港市（Neo Harbor）\n"
             "- 核心设定：维度裂缝正在侵蚀现实，赛博朋克与异次元交汇\n"
             "- 公司DATAWHALE是城市数据基础设施的运营者\n"
@@ -176,11 +221,18 @@ class StoryEngine:
                                completed_chapters: List[str]) -> str:
         class_names = {"cipher": "数据分析师", "chrome": "义体战士",
                        "echo": "灵能感知者", "shadow": "暗影潜行者"}
+        npc_ids = template.get("npcs") or list(NPC_CONFIGS.keys())
+        npc_names = [
+            NPC_CONFIGS.get(npc_id, {}).get("name", npc_id)
+            for npc_id in npc_ids
+        ]
         return (
             f"章节：{template['title']}\n"
             f"主题：{template['theme']}\n"
             f"关键事件：{', '.join(template['key_events'])}\n"
-            f"相关NPC：{', '.join(template['npcs'])}\n"
+            f"世界上下文：{WORLD_CONTEXT}\n"
+            f"相关NPC：{', '.join(npc_names)}\n"
+            f"NPC档案：\n{self._format_npc_roster(npc_ids)}\n"
             f"玩家：{player_name}（{class_names.get(player_class, player_class)}）\n"
             f"当前异常等级：{anomaly_level:.1f}/100\n"
             f"已完成章节：{', '.join(completed_chapters) if completed_chapters else '无'}\n\n"
@@ -188,6 +240,7 @@ class StoryEngine:
         )
 
     def _get_fallback_content(self, chapter_id: str) -> str:
+        chapter_id = self.normalize_chapter_id(chapter_id)
         fallback = {
             "ch1": "你抵达了新港·207，霓虹灯在雨中闪烁。DATAWHALE公司的办公室等待着你，新的生活即将开始...",
             "ch2": "数据流中出现了不该存在的模式。何真盯着屏幕上AI系统的异常输出，眉头紧锁...",
@@ -196,6 +249,65 @@ class StoryEngine:
             "ch5": "最终的选择摆在你面前。维度裂缝可以被封闭，也可以被彻底打开。你的决定将改变一切...",
         }
         return fallback.get(chapter_id, "故事继续...")
+
+    def normalize_chapter_id(self, chapter_id: Optional[str]) -> Optional[str]:
+        if not chapter_id:
+            return chapter_id
+
+        normalized = str(chapter_id).strip().lower().replace("-", "_")
+        if normalized in self.CHAPTER_TEMPLATES:
+            return normalized
+        if normalized in self.CHAPTER_ALIASES:
+            return self.CHAPTER_ALIASES[normalized]
+
+        match = re.search(r"(?:^|_)ch([1-5])(?:_|$)", normalized)
+        if match:
+            candidate = f"ch{match.group(1)}"
+            if candidate in self.CHAPTER_TEMPLATES:
+                return candidate
+
+        match = re.search(r"chapter_?([1-5])", normalized)
+        if match:
+            candidate = f"ch{match.group(1)}"
+            if candidate in self.CHAPTER_TEMPLATES:
+                return candidate
+
+        return normalized
+
+    def _format_scene(self, scene: str) -> str:
+        return SCENE_LABELS.get(scene, scene or "未知场景")
+
+    def _format_routine(self, routine: Dict[str, str]) -> str:
+        if not routine:
+            return "暂无固定日程"
+        return "；".join(
+            f"{PERIOD_LABELS.get(period, period)}：{activity}"
+            for period, activity in routine.items()
+        )
+
+    def _format_social_links(self, social_links: Dict[str, str]) -> str:
+        if not social_links:
+            return "暂无明确社交关系"
+        links = []
+        for linked_id, relation in social_links.items():
+            linked_name = NPC_CONFIGS.get(linked_id, {}).get("name", linked_id)
+            links.append(f"{linked_name}：{relation}")
+        return "；".join(links)
+
+    def _format_npc_roster(self, npc_ids: List[str]) -> str:
+        lines = []
+        for npc_id in npc_ids:
+            cfg = NPC_CONFIGS.get(npc_id)
+            if not cfg:
+                continue
+            lines.append(
+                f"- {cfg['name']}（id: {npc_id}，{cfg['role']}）："
+                f"scene={self._format_scene(cfg.get('scene', 'office'))}；"
+                f"性格={cfg['personality']}；"
+                f"routine={self._format_routine(cfg.get('routine', {}))}；"
+                f"背景={cfg.get('backstory', '无')}"
+            )
+        return "\n".join(lines) or "无"
 
 
 story_engine = StoryEngine()

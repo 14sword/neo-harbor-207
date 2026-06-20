@@ -4,10 +4,12 @@ enum ClassType { CIPHER, CHROME, ECHO, SHADOW }
 enum FormType { FORM_FEMALE, FORM_HEAVY, FORM_ETHEREAL, FORM_STEALTH }
 
 signal class_changed(new_class: int)
+signal visual_form_mode_changed(mode: String)
 
 var _current_class: ClassType = ClassType.CIPHER
 var _player_name: String = "玩家"
 var _class_selected: bool = false
+var _visual_form_mode: String = "class"
 
 const CLASS_DATA = {
 	ClassType.CIPHER: {
@@ -112,6 +114,33 @@ const CLASS_DATA = {
 	},
 }
 
+const CLASS_VISUALS = {
+	ClassType.CIPHER: {
+		"accent_color": Color(0.0, 0.85, 1.0, 1.0),
+		"secondary_color": Color(0.75, 0.95, 1.0, 1.0),
+		"particle_profile": "blue_flow_particles",
+		"overlay_profile": "data_scan",
+	},
+	ClassType.CHROME: {
+		"accent_color": Color(1.0, 0.45, 0.08, 1.0),
+		"secondary_color": Color(1.0, 0.75, 0.25, 1.0),
+		"particle_profile": "metallic_reflection",
+		"overlay_profile": "cyber_armor",
+	},
+	ClassType.ECHO: {
+		"accent_color": Color(0.95, 0.25, 1.0, 1.0),
+		"secondary_color": Color(0.7, 0.5, 1.0, 1.0),
+		"particle_profile": "purple_orbiting_particles",
+		"overlay_profile": "psionic_aura",
+	},
+	ClassType.SHADOW: {
+		"accent_color": Color(0.25, 1.0, 0.35, 1.0),
+		"secondary_color": Color(0.45, 0.95, 0.55, 1.0),
+		"particle_profile": "afterimage",
+		"overlay_profile": "stealth_trace",
+	},
+}
+
 const SKILL_DATA = {
 	"data_insight_1": {"name": "数据透视", "level": 1, "max_level": 3, "type": "passive", "description": "可以发现隐藏的数据信息"},
 	"data_insight_2": {"name": "数据透视", "level": 2, "max_level": 3, "type": "passive", "description": "数据透视范围扩大，发现更多隐藏信息"},
@@ -164,9 +193,13 @@ func select_class(class_type: ClassType, player_name: String) -> void:
 	_current_class = class_type
 	_player_name = player_name
 	_class_selected = true
+	var old_visual_form_mode = _visual_form_mode
+	_visual_form_mode = "class"
 	_apply_class_stats()
 	_apply_initial_affinity()
 	class_changed.emit(class_type)
+	if old_visual_form_mode != _visual_form_mode:
+		visual_form_mode_changed.emit(_visual_form_mode)
 	print("[CharacterClassManager] 选择职业: " + get_class_name() + " (" + _player_name + ")")
 
 func _apply_class_stats() -> void:
@@ -223,6 +256,20 @@ func get_player_name() -> String:
 func is_class_selected() -> bool:
 	return _class_selected
 
+func get_visual_form_mode() -> String:
+	return _visual_form_mode
+
+func set_visual_form_mode(mode: String) -> void:
+	var normalized_mode = mode if mode == "default" else "class"
+	if _visual_form_mode == normalized_mode:
+		return
+	_visual_form_mode = normalized_mode
+	visual_form_mode_changed.emit(_visual_form_mode)
+
+func toggle_visual_form_mode() -> String:
+	set_visual_form_mode("default" if _visual_form_mode == "class" else "class")
+	return _visual_form_mode
+
 func get_all_classes() -> Dictionary:
 	return CLASS_DATA
 
@@ -269,6 +316,7 @@ func get_save_data() -> Dictionary:
 		"current_class": _current_class,
 		"player_name": _player_name,
 		"class_selected": _class_selected,
+		"visual_form_mode": _visual_form_mode,
 	}
 
 func load_save_data(data: Dictionary) -> void:
@@ -278,16 +326,39 @@ func load_save_data(data: Dictionary) -> void:
 		_player_name = str(data["player_name"])
 	if data.has("class_selected"):
 		_class_selected = bool(data["class_selected"])
+	var old_visual_form_mode = _visual_form_mode
+	_visual_form_mode = "class"
+	if data.has("visual_form_mode"):
+		var saved_mode = str(data["visual_form_mode"])
+		_visual_form_mode = saved_mode if saved_mode == "default" else "class"
+	class_changed.emit(_current_class)
+	if old_visual_form_mode != _visual_form_mode:
+		visual_form_mode_changed.emit(_visual_form_mode)
 
 func get_form_info() -> Dictionary:
 	var class_data = CLASS_DATA.get(_current_class, {})
+	var class_id = class_data.get("id", "player")
+	if _visual_form_mode == "default":
+		return {
+			"id": "player",
+			"form_type": "form_default",
+			"runtime_sprite_dir": "",
+			"sprite_scale": Vector2(0.25, 0.25),
+			"sprite_modulate": Color(1, 1, 1, 1),
+			"shader": null,
+			"extra_effects": null,
+			"visual": {},
+		}
+	var runtime_dir = "res://assets/characters/player/classes/" + class_id + "/"
 	return {
-		"id": class_data.get("id", "player"),
+		"id": class_id,
 		"form_type": class_data.get("form_type", "form_female"),
-		"sprite_scale": class_data.get("sprite_scale", Vector2(1.25, 1.25)),
+		"runtime_sprite_dir": runtime_dir,
+		"sprite_scale": class_data.get("sprite_scale", Vector2(0.25, 0.25)),
 		"sprite_modulate": class_data.get("sprite_modulate", Color(1, 1, 1, 1)),
 		"shader": class_data.get("shader", null),
 		"extra_effects": class_data.get("extra_effects", null),
+		"visual": CLASS_VISUALS.get(_current_class, {}),
 	}
 
 const CLASS_IMAGE_PROMPTS = {

@@ -14,3 +14,8 @@ backend/data/
 .trae/documents/
 
 .claude/
+
+# Excluded folders and files
+backend/.venv/
+backend/logs/
+飞书展示文档.md

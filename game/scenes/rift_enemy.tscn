@@ -1,0 +1,43 @@
+[gd_scene load_steps=4 format=3]
+
+[ext_resource type="Script" path="res://scripts/rift/rift_enemy.gd" id="1_script"]
+
+[sub_resource type="CircleShape2D" id="CircleShape2D_enemy"]
+radius = 28.0
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_hp_bg"]
+bg_color = Color(0.08, 0.08, 0.1, 0.86)
+corner_radius_top_left = 3
+corner_radius_top_right = 3
+corner_radius_bottom_right = 3
+corner_radius_bottom_left = 3
+
+[node name="RiftEnemy" type="CharacterBody2D"]
+collision_layer = 8
+collision_mask = 0
+script = ExtResource("1_script")
+
+[node name="Sprite2D" type="Sprite2D" parent="."]
+texture_filter = 1
+scale = Vector2(0.27, 0.27)
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="."]
+shape = SubResource("CircleShape2D_enemy")
+
+[node name="HealthBar" type="ProgressBar" parent="."]
+visible = false
+offset_left = -32.0
+offset_top = -48.0
+offset_right = 32.0
+offset_bottom = -40.0
+show_percentage = false
+theme_override_styles/background = SubResource("StyleBoxFlat_hp_bg")
+
+[node name="NameLabel" type="Label" parent="."]
+visible = false
+offset_left = -70.0
+offset_top = -72.0
+offset_right = 70.0
+offset_bottom = -52.0
+text = "裂隙怪物"
+horizontal_alignment = 1

@@ -1,8 +1,11 @@
 import os
+from pathlib import Path
 from dotenv import load_dotenv
 from pydantic_settings import BaseSettings
 
-load_dotenv()
+BACKEND_DIR = Path(__file__).resolve().parent
+
+load_dotenv(BACKEND_DIR / ".env")
 
 class Settings(BaseSettings):
     model_config = {"extra": "allow", "env_file": ".env"}
@@ -12,7 +15,7 @@ class Settings(BaseSettings):
     deepseek_model: str = os.getenv("DEEPSEEK_MODEL", "deepseek-chat")
 
     groq_api_key: str = os.getenv("GROQ_API_KEY", "")
-    groq_base_url: str = "https://api.groq.com/openai/v1"
+    groq_base_url: str = os.getenv("GROQ_BASE_URL", "https://api.groq.com/openai/v1")
     groq_model: str = os.getenv("GROQ_MODEL", "llama-3.1-8b-instant")
 
     mimo_api_key: str = os.getenv("MIMO_API_KEY", "")
@@ -24,6 +27,10 @@ class Settings(BaseSettings):
 
     host: str = os.getenv("HOST", "0.0.0.0")
     port: int = int(os.getenv("PORT", "8000"))
+    enable_batch_dialogue_refresh: bool = False
+    batch_dialogue_refresh_seconds: int = 300
+    database_path: str = os.getenv("DATABASE_PATH", str(BACKEND_DIR / "data" / "cyber_town.db"))
+    log_dir: str = os.getenv("LOG_DIR", str(BACKEND_DIR / "logs"))
 
 settings = Settings()
 

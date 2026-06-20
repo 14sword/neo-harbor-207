@@ -1,0 +1,128 @@
+[gd_scene load_steps=13 format=3]
+
+[ext_resource type="Script" path="res://scripts/rift/rift_run.gd" id="1_script"]
+[ext_resource type="Script" path="res://scripts/rift/rift_player_combat.gd" id="2_player_script"]
+[ext_resource type="Script" path="res://scripts/rift/rift_enemy_spawner.gd" id="3_spawner_script"]
+[ext_resource type="Script" path="res://scripts/rift/rift_environment_manager.gd" id="4_environment_script"]
+[ext_resource type="PackedScene" path="res://scenes/rift_hud.tscn" id="5_hud"]
+[ext_resource type="PackedScene" path="res://scenes/rift_tile_select.tscn" id="6_tile_select"]
+[ext_resource type="PackedScene" path="res://scenes/rift_result_panel.tscn" id="7_result"]
+
+[sub_resource type="CircleShape2D" id="CircleShape2D_player"]
+radius = 22.0
+
+[sub_resource type="RectangleShape2D" id="RectangleShape2D_hazard_top"]
+size = Vector2(1920, 44)
+
+[sub_resource type="RectangleShape2D" id="RectangleShape2D_hazard_bottom"]
+size = Vector2(1920, 44)
+
+[sub_resource type="RectangleShape2D" id="RectangleShape2D_hazard_left"]
+size = Vector2(44, 1080)
+
+[sub_resource type="RectangleShape2D" id="RectangleShape2D_hazard_right"]
+size = Vector2(44, 1080)
+
+[node name="RiftRun" type="Node2D"]
+process_mode = 3
+script = ExtResource("1_script")
+
+[node name="Background" type="Sprite2D" parent="."]
+position = Vector2(960, 540)
+texture_filter = 1
+
+[node name="ArenaTint" type="ColorRect" parent="."]
+offset_right = 1920.0
+offset_bottom = 1080.0
+color = Color(0.05, 0.0, 0.12, 0.24)
+mouse_filter = 2
+
+[node name="RiftEnvironmentManager" type="Node2D" parent="."]
+script = ExtResource("4_environment_script")
+
+[node name="EdgeHazards" type="Node2D" parent="."]
+
+[node name="Top" type="StaticBody2D" parent="EdgeHazards"]
+position = Vector2(960, 22)
+collision_layer = 2
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="EdgeHazards/Top"]
+shape = SubResource("RectangleShape2D_hazard_top")
+
+[node name="Bottom" type="StaticBody2D" parent="EdgeHazards"]
+position = Vector2(960, 1058)
+collision_layer = 2
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="EdgeHazards/Bottom"]
+shape = SubResource("RectangleShape2D_hazard_bottom")
+
+[node name="Left" type="StaticBody2D" parent="EdgeHazards"]
+position = Vector2(22, 540)
+collision_layer = 2
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="EdgeHazards/Left"]
+shape = SubResource("RectangleShape2D_hazard_left")
+
+[node name="Right" type="StaticBody2D" parent="EdgeHazards"]
+position = Vector2(1898, 540)
+collision_layer = 2
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="EdgeHazards/Right"]
+shape = SubResource("RectangleShape2D_hazard_right")
+
+[node name="Player" type="CharacterBody2D" parent="."]
+position = Vector2(960, 710)
+collision_layer = 1
+collision_mask = 2
+script = ExtResource("2_player_script")
+
+[node name="Camera2D" type="Camera2D" parent="Player"]
+enabled = true
+position_smoothing_enabled = true
+position_smoothing_speed = 6.0
+limit_left = 0
+limit_top = 0
+limit_right = 1920
+limit_bottom = 1080
+
+[node name="Sprite2D" type="Sprite2D" parent="Player"]
+texture_filter = 1
+scale = Vector2(0.25, 0.25)
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="Player"]
+shape = SubResource("CircleShape2D_player")
+
+[node name="EnemySpawner" type="Node2D" parent="."]
+script = ExtResource("3_spawner_script")
+arena_min = Vector2(300, 180)
+arena_max = Vector2(1620, 900)
+
+[node name="RiftHUD" parent="." instance=ExtResource("5_hud")]
+
+[node name="RiftTileSelect" parent="." instance=ExtResource("6_tile_select")]
+
+[node name="RiftResultPanel" parent="." instance=ExtResource("7_result")]
+
+[node name="PauseLayer" type="CanvasLayer" parent="."]
+layer = 35
+
+[node name="PausePanel" type="Panel" parent="PauseLayer"]
+visible = false
+anchors_preset = 8
+anchor_left = 0.5
+anchor_top = 0.5
+anchor_right = 0.5
+anchor_bottom = 0.5
+offset_left = -180.0
+offset_top = -70.0
+offset_right = 180.0
+offset_bottom = 70.0
+
+[node name="Label" type="Label" parent="PauseLayer/PausePanel"]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+text = "暂停\nEsc 继续"
+horizontal_alignment = 1
+vertical_alignment = 1

@@ -9,21 +9,22 @@ var _lightning_rect: ColorRect
 var _lightning_timer: float = 0.0
 var _lightning_cooldown: float = 0.0
 var _cached_light_texture: Texture2D = null
+var _cached_rain_texture: Texture2D = null
+var _cached_rain_ramp: GradientTexture1D = null
 var _initialized: bool = false
 
 signal weather_changed(new_weather: WeatherType)
 
 func _ready():
 	_cached_light_texture = _create_light_texture()
+	_cached_rain_texture = _create_rain_texture()
+	_cached_rain_ramp = _create_color_ramp([Color(0.6, 0.65, 0.8, 0.0), Color(0.6, 0.65, 0.8, 0.5), Color(0.6, 0.65, 0.8, 0.0)])
 	_sync_with_daily_generator()
 	_initialized = true
 
 func _process(delta):
 	if current_weather == WeatherType.THUNDERSTORM:
 		_process_thunderstorm(delta)
-	elif current_weather == WeatherType.LIGHT_RAIN:
-		if _rain_particles:
-			_rain_particles.amount = 40
 
 func _sync_with_daily_generator():
 	if has_node("/root/DailyWorldGenerator"):
@@ -48,13 +49,46 @@ func apply_weather_effects():
 	if not _initialized:
 		return
 	if has_node("/root/SceneManager") and get_node("/root/SceneManager").is_apartment():
-		_cleanup_effects()
+		_set_effects_visible(false)
 		return
 
-	_cleanup_effects()
 	var root = get_tree().current_scene
 	if not root:
 		return
+
+	_ensure_effect_nodes(root)
+	_set_effects_visible(true)
+	_rain_particles.emitting = false
+	_rain_particles.visible = false
+	_lightning_rect.visible = false
+	_lightning_rect.color = Color(1, 1, 1, 0)
+	_weather_overlay.visible = current_weather != WeatherType.SUNNY
+
+	match current_weather:
+		WeatherType.SUNNY:
+			_weather_overlay.color = Color(0, 0, 0, 0)
+		WeatherType.CLOUDY:
+			_weather_overlay.color = Color(0.05, 0.05, 0.08, 0.1)
+		WeatherType.LIGHT_RAIN:
+			_weather_overlay.color = Color(0.02, 0.02, 0.06, 0.15)
+			_rain_particles.amount = 40
+			_rain_particles.emitting = true
+			_rain_particles.visible = true
+		WeatherType.THUNDERSTORM:
+			_weather_overlay.color = Color(0.02, 0.02, 0.08, 0.25)
+			_rain_particles.amount = 80
+			_rain_particles.emitting = true
+			_rain_particles.visible = true
+			_lightning_rect.visible = true
+			_lightning_cooldown = randf_range(3.0, 8.0)
+		WeatherType.FOG:
+			_weather_overlay.color = Color(0.3, 0.3, 0.35, 0.2)
+
+func _ensure_effect_nodes(root: Node) -> void:
+	if is_instance_valid(_weather_overlay) and _weather_overlay.get_parent() == root:
+		return
+
+	_cleanup_effects()
 
 	_weather_overlay = ColorRect.new()
 	_weather_overlay.name = "WeatherOverlay"
@@ -64,29 +98,28 @@ func apply_weather_effects():
 	_weather_overlay.color = Color(0, 0, 0, 0)
 	root.add_child(_weather_overlay)
 
-	match current_weather:
-		WeatherType.SUNNY:
-			_weather_overlay.color = Color(0, 0, 0, 0)
-		WeatherType.CLOUDY:
-			_weather_overlay.color = Color(0.05, 0.05, 0.08, 0.1)
-		WeatherType.LIGHT_RAIN:
-			_weather_overlay.color = Color(0.02, 0.02, 0.06, 0.15)
-			_rain_particles = _create_rain_particles(40)
-			root.add_child(_rain_particles)
-		WeatherType.THUNDERSTORM:
-			_weather_overlay.color = Color(0.02, 0.02, 0.08, 0.25)
-			_rain_particles = _create_rain_particles(80)
-			root.add_child(_rain_particles)
-			_lightning_rect = ColorRect.new()
-			_lightning_rect.name = "LightningFlash"
-			_lightning_rect.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
-			_lightning_rect.color = Color(1, 1, 1, 0)
-			_lightning_rect.mouse_filter = Control.MOUSE_FILTER_IGNORE
-			_lightning_rect.z_index = 52
-			root.add_child(_lightning_rect)
-			_lightning_cooldown = randf_range(3.0, 8.0)
-		WeatherType.FOG:
-			_weather_overlay.color = Color(0.3, 0.3, 0.35, 0.2)
+	_rain_particles = _create_rain_particles(80)
+	_rain_particles.emitting = false
+	_rain_particles.visible = false
+	root.add_child(_rain_particles)
+
+	_lightning_rect = ColorRect.new()
+	_lightning_rect.name = "LightningFlash"
+	_lightning_rect.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	_lightning_rect.color = Color(1, 1, 1, 0)
+	_lightning_rect.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_lightning_rect.z_index = 52
+	_lightning_rect.visible = false
+	root.add_child(_lightning_rect)
+
+func _set_effects_visible(visible: bool) -> void:
+	if is_instance_valid(_weather_overlay):
+		_weather_overlay.visible = visible and current_weather != WeatherType.SUNNY
+	if is_instance_valid(_rain_particles):
+		_rain_particles.visible = visible and is_raining()
+		_rain_particles.emitting = visible and is_raining()
+	if is_instance_valid(_lightning_rect):
+		_lightning_rect.visible = visible and current_weather == WeatherType.THUNDERSTORM
 
 func _process_thunderstorm(delta):
 	if _lightning_cooldown > 0:
@@ -135,11 +168,11 @@ func _create_rain_particles(amount: int) -> GPUParticles2D:
 	pm.scale_min = 0.5
 	pm.scale_max = 1.5
 	pm.color = Color(0.6, 0.65, 0.8, 0.4)
-	pm.color_ramp = _create_color_ramp([Color(0.6, 0.65, 0.8, 0.0), Color(0.6, 0.65, 0.8, 0.5), Color(0.6, 0.65, 0.8, 0.0)])
+	pm.color_ramp = _cached_rain_ramp
 	pm.emission_box_extents = Vector3(700, 10, 0)
 
 	particles.process_material = pm
-	particles.texture = _create_rain_texture()
+	particles.texture = _cached_rain_texture
 	particles.lifetime = 1.0
 	particles.explosiveness = 0.0
 	particles.randomness = 0.3

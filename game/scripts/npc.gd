@@ -13,6 +13,20 @@ enum State { WORKING, WANDERING, RETURNING, RESTING, SHELTERING }
 @export var wander_duration_max: float = 20.0
 @export var patrol_points: Array[Vector2] = []
 
+const NPC_DISPLAY_NAMES = {
+	"zhang_san": "张三",
+	"li_si": "李四",
+	"wang_wu": "王五",
+	"chen_xi": "陈曦",
+	"zhao_lin": "赵霖",
+	"sun_yue": "孙悦",
+	"liu_feng": "刘风",
+	"he_zhen": "何真",
+}
+
+const RUNTIME_SPRITE_BASE = "res://assets/characters/npcs/runtime/"
+const SPRITE_SCALE = Vector2(0.25, 0.25)
+
 var current_dialogue: String = ""
 var player: Node = null
 var wander_target: Vector2 = Vector2.ZERO
@@ -26,10 +40,15 @@ var bubble_timer: SceneTreeTimer = null
 var _patrol_index: int = 0
 
 var _directional_frames: Dictionary = {}
+var _idle_frames: Array[Texture2D] = []
 var _current_direction: String = "down"
 var _walk_frame: int = 0
 var _walk_timer: float = 0.0
 var _walk_frame_interval: float = 0.18
+var _idle_frame: int = 0
+var _idle_timer: float = 0.0
+var _idle_frame_interval: float = 0.24
+var _was_moving_last_frame: bool = false
 var _last_texture: Texture2D = null
 var _last_flip_h: bool = false
 var _rest_position: Vector2 = Vector2.ZERO
@@ -59,8 +78,7 @@ func _ready():
 	collision_layer = 2
 	collision_mask = 1
 
-	var display_names = {"zhang_san": "张三", "li_si": "李四", "wang_wu": "王五", "chen_xi": "陈曦", "zhao_lin": "赵霖", "sun_yue": "孙悦", "liu_feng": "刘风", "he_zhen": "何真"}
-	display_name = display_names.get(npc_name, npc_name)
+	display_name = NPC_DISPLAY_NAMES.get(npc_name, npc_name)
 
 	name_label.text = display_name
 	name_label.visible = true
@@ -106,25 +124,44 @@ func _load_directional_frames():
 	var char_id = npc_name
 	var directions = ["down", "up", "left", "right"]
 	var loaded_count = 0
+	_idle_frames.clear()
 
 	for dir_name in directions:
 		_directional_frames[dir_name] = []
 		for frame_idx in range(3):
-			var path = base_path + char_id + "_" + dir_name + "_" + str(frame_idx) + ".png"
-			var tex = load(path)
+			var path = RUNTIME_SPRITE_BASE + char_id + "/" + char_id + "_" + dir_name + "_" + str(frame_idx) + ".png"
+			var tex = _load_texture_if_exists(path)
+			if tex == null:
+				path = base_path + char_id + "_" + dir_name + "_" + str(frame_idx) + ".png"
+				tex = _load_texture_if_exists(path)
 			if tex:
 				_directional_frames[dir_name].append(tex)
 				loaded_count += 1
 
 		if _directional_frames[dir_name].size() == 0:
-			var fallback_path = base_path + char_id + "_" + dir_name + ".png"
-			var fallback_tex = load(fallback_path)
+			var fallback_path = RUNTIME_SPRITE_BASE + char_id + "/" + char_id + "_" + dir_name + ".png"
+			var fallback_tex = _load_texture_if_exists(fallback_path)
+			if fallback_tex == null:
+				fallback_path = base_path + char_id + "_" + dir_name + ".png"
+				fallback_tex = _load_texture_if_exists(fallback_path)
 			if fallback_tex:
 				_directional_frames[dir_name].append(fallback_tex)
 				loaded_count += 1
 
+		if _directional_frames[dir_name].size() == 0:
+			var still_tex = _load_still_fallback()
+			if still_tex:
+				_directional_frames[dir_name].append(still_tex)
+				loaded_count += 1
+
+	for frame_idx in range(5):
+		var idle_path = RUNTIME_SPRITE_BASE + char_id + "/" + char_id + "_idle_" + str(frame_idx) + ".png"
+		var idle_tex = _load_texture_if_exists(idle_path)
+		if idle_tex:
+			_idle_frames.append(idle_tex)
+
 	if sprite:
-		sprite.scale = Vector2(0.25, 0.25)
+		sprite.scale = SPRITE_SCALE
 		sprite.texture_filter = CanvasItem.TEXTURE_FILTER_LINEAR
 		var frames = _directional_frames.get("down", [])
 		if frames.size() > 0:
@@ -133,7 +170,29 @@ func _load_directional_frames():
 			_last_texture = frames[0]
 			_last_flip_h = false
 
+	if loaded_count == 0:
+		push_warning("[NPC] " + npc_name + " 未找到任何可用纹理")
 	_log_event("[NPC] " + npc_name + " 方向帧加载完成 (" + str(loaded_count) + "帧)")
+
+func _load_texture_if_exists(path: String) -> Texture2D:
+	if ResourceLoader.exists(path):
+		var tex = load(path)
+		if tex is Texture2D:
+			return tex
+	return null
+
+func _load_still_fallback() -> Texture2D:
+	var zh_name = NPC_DISPLAY_NAMES.get(npc_name, "")
+	var fallback_paths = []
+	if not zh_name.is_empty():
+		fallback_paths.append("res://assets/characters/npcs/" + zh_name + ".png")
+		fallback_paths.append("res://assets/characters/npcs/人物移动动作/" + zh_name + ".png")
+		fallback_paths.append("res://assets/characters/npcs/人物展示界面/" + zh_name + ".png")
+	for path in fallback_paths:
+		var tex = _load_texture_if_exists(path)
+		if tex:
+			return tex
+	return null
 
 func _on_body_entered(body: Node2D):
 	if body.is_in_group("player"):
@@ -184,7 +243,9 @@ func _hide_bubble():
 
 func _physics_process(delta: float):
 	if is_interacting:
-		_update_sprite_idle()
+		if player != null:
+			_face_toward_player()
+		_update_sprite_idle(delta, true)
 		return
 
 	if _glitch_mutation_active:
@@ -192,120 +253,131 @@ func _physics_process(delta: float):
 
 	if player != null:
 		_face_toward_player()
-		_update_sprite_idle()
+		_update_sprite_idle(delta, true)
 		return
 
 	if not wander_enabled:
-		_update_sprite_idle()
+		_update_sprite_idle(delta)
 		return
 
+	if _should_idle_for_distance():
+		_update_sprite_idle(delta)
+		return
+
+	state_timer -= delta
+	var is_moving_now = _update_current_state(delta)
+
+	if is_moving_now:
+		_update_sprite_walking(delta)
+	else:
+		_update_sprite_idle(delta)
+
+func _should_idle_for_distance() -> bool:
 	var player_dist = 9999.0
 	if is_instance_valid(player):
 		player_dist = global_position.distance_to(player.global_position)
 	elif has_node("/root/PlayerManager") and is_instance_valid(get_node("/root/PlayerManager").player_node):
 		player_dist = global_position.distance_to(get_node("/root/PlayerManager").player_node.global_position)
+	else:
+		var active_player = get_tree().get_first_node_in_group("player")
+		if active_player and active_player is Node2D:
+			player_dist = global_position.distance_to(active_player.global_position)
+	return player_dist > 800.0 and current_state != State.WANDERING and current_state != State.RETURNING
 
-	if player_dist > 800.0 and current_state != State.WANDERING and current_state != State.RETURNING:
-		_update_sprite_idle()
-		return
-
-	state_timer -= delta
-	var is_moving_now = false
-
+func _update_current_state(delta: float) -> bool:
 	match current_state:
 		State.WORKING:
-			if state_timer <= 0:
-				current_state = State.WANDERING
-				choose_new_wander_target()
-				state_timer = randf_range(wander_duration_min, wander_duration_max)
-				_log_event("🚶 " + display_name + "离开工位，开始闲逛")
+			return _update_working_state()
 
 		State.WANDERING:
-			if state_timer <= 0:
-				current_state = State.RETURNING
-				state_timer = 9999
-				_log_event("🔙 " + display_name + "正在返回工位")
-
-			if is_wandering:
-				if global_position.distance_to(wander_target) < 10:
-					is_wandering = false
-					velocity = Vector2.ZERO
-				else:
-					var direction = (wander_target - global_position).normalized()
-					velocity = direction * move_speed
-					move_and_slide()
-					is_moving_now = true
+			return _update_wandering_state()
 
 		State.RETURNING:
-			if global_position.distance_to(work_position) < 10:
-				current_state = State.WORKING
-				is_wandering = false
-				velocity = Vector2.ZERO
-				global_position = work_position
-				state_timer = randf_range(work_duration_min, work_duration_max)
-				_log_event("💼 " + display_name + "回到工位，继续工作")
-			else:
-				var direction = (work_position - global_position).normalized()
-				velocity = direction * move_speed * 1.5
-				move_and_slide()
-				is_moving_now = true
+			return _update_returning_state()
 
 		State.RESTING:
-			if is_wandering:
-				if global_position.distance_to(wander_target) < 10:
-					is_wandering = false
-					velocity = Vector2.ZERO
-				else:
-					var direction = (wander_target - global_position).normalized()
-					velocity = direction * move_speed * 0.7
-					move_and_slide()
-					is_moving_now = true
-			else:
-				_resting_bubble_timer -= delta
-				if _resting_bubble_timer <= 0:
-					_resting_bubble_timer = randf_range(8.0, 15.0)
-					var rest_phrases = ["休息中...", "好累啊...", "喝杯咖啡吧..."]
-					if display_name in ["陈曦", "赵霖", "刘风"]:
-						rest_phrases = ["嗯...今天也不错", "来一杯?", "..."]
-					update_dialogue(rest_phrases[randi() % rest_phrases.size()])
-				velocity = Vector2.ZERO
+			return _update_resting_state(delta)
 
 		State.SHELTERING:
-			if is_wandering:
-				if global_position.distance_to(wander_target) < 10:
-					is_wandering = false
-					velocity = Vector2.ZERO
-				else:
-					var direction = (wander_target - global_position).normalized()
-					velocity = direction * move_speed * 1.2
-					move_and_slide()
-					is_moving_now = true
-			else:
-				if sprite:
-					sprite.scale.y = 1.1
-				velocity = Vector2.ZERO
+			return _update_sheltering_state()
+	return false
 
-	if is_moving_now:
-		_update_sprite_walking(delta)
-	else:
-		_update_sprite_idle()
-		if current_state != State.SHELTERING and sprite and sprite.scale.y < 0.25:
-			sprite.scale.y = 0.25
+func _update_working_state() -> bool:
+	if state_timer <= 0:
+		current_state = State.WANDERING
+		choose_new_wander_target()
+		state_timer = randf_range(wander_duration_min, wander_duration_max)
+		_log_event("🚶 " + display_name + "离开工位，开始闲逛")
+	return false
+
+func _update_wandering_state() -> bool:
+	if state_timer <= 0:
+		current_state = State.RETURNING
+		state_timer = 9999
+		_log_event("🔙 " + display_name + "正在返回工位")
+	if is_wandering:
+		return _move_toward_target(wander_target, 1.0)
+	return false
+
+func _update_returning_state() -> bool:
+	if global_position.distance_to(work_position) < 10:
+		current_state = State.WORKING
+		is_wandering = false
+		velocity = Vector2.ZERO
+		global_position = work_position
+		state_timer = randf_range(work_duration_min, work_duration_max)
+		_log_event("💼 " + display_name + "回到工位，继续工作")
+		return false
+	return _move_toward_target(work_position, 1.5, false)
+
+func _update_resting_state(delta: float) -> bool:
+	if is_wandering:
+		return _move_toward_target(wander_target, 0.7)
+	_update_resting_bubble(delta)
+	velocity = Vector2.ZERO
+	return false
+
+func _update_resting_bubble(delta: float) -> void:
+	_resting_bubble_timer -= delta
+	if _resting_bubble_timer > 0:
+		return
+	_resting_bubble_timer = randf_range(8.0, 15.0)
+	var rest_phrases = ["休息中...", "好累啊...", "喝杯咖啡吧..."]
+	if display_name in ["陈曦", "赵霖", "刘风"]:
+		rest_phrases = ["嗯...今天也不错", "来一杯?", "..."]
+	update_dialogue(rest_phrases[randi() % rest_phrases.size()])
+
+func _update_sheltering_state() -> bool:
+	if is_wandering:
+		return _move_toward_target(wander_target, 1.2)
+	if sprite:
+		sprite.scale.y = SPRITE_SCALE.y * 1.1
+	velocity = Vector2.ZERO
+	return false
+
+func _move_toward_target(target: Vector2, speed_multiplier: float, clear_wander_on_arrival: bool = true) -> bool:
+	if global_position.distance_to(target) < 10:
+		if clear_wander_on_arrival:
+			is_wandering = false
+		velocity = Vector2.ZERO
+		return false
+	var direction = (target - global_position).normalized()
+	velocity = direction * move_speed * speed_multiplier
+	move_and_slide()
+	return true
 
 func _update_sprite_walking(delta: float):
+	if velocity.length() <= 1.0:
+		_update_sprite_idle(delta)
+		return
+
+	if current_state != State.SHELTERING and sprite and not _glitch_mutation_active:
+		sprite.scale = SPRITE_SCALE
+
 	var new_direction = _current_direction
 	var abs_vx = abs(velocity.x)
 	var abs_vy = abs(velocity.y)
-	if abs_vx > 10 and abs_vy > 10:
-		if velocity.x > 0 and velocity.y > 0:
-			new_direction = "down_right"
-		elif velocity.x > 0 and velocity.y < 0:
-			new_direction = "up_right"
-		elif velocity.x < 0 and velocity.y > 0:
-			new_direction = "down_left"
-		else:
-			new_direction = "up_left"
-	elif abs_vx > abs_vy:
+	if abs_vx >= abs_vy:
 		if velocity.x > 0:
 			new_direction = "right"
 		else:
@@ -320,44 +392,95 @@ func _update_sprite_walking(delta: float):
 		_current_direction = new_direction
 		_walk_frame = 0
 		_walk_timer = 0.0
+		_was_moving_last_frame = true
 		_apply_frame()
 		return
 
 	_walk_timer += delta
 	if _walk_timer >= _walk_frame_interval:
-		_walk_timer = 0.0
-		_walk_frame = (_walk_frame + 1) % 3
+		_walk_timer -= _walk_frame_interval
+		_walk_frame = (_walk_frame + 1) % _get_walk_frame_count(new_direction)
 		_apply_frame()
+	_was_moving_last_frame = true
 
-func _update_sprite_idle():
+func _update_sprite_idle(delta: float = 0.0, keep_direction: bool = false):
 	_walk_frame = 0
 	_walk_timer = 0.0
-	_apply_frame()
 
-func _apply_frame():
-	var base_dir = _current_direction
-	var flip: bool = false
+	if current_state != State.SHELTERING and sprite and not _glitch_mutation_active:
+		sprite.scale = SPRITE_SCALE
 
-	if _current_direction in ["down_left", "up_left"]:
-		if _current_direction == "down_left":
-			base_dir = "down"
-		else:
-			base_dir = "up"
+	if keep_direction or _idle_frames.is_empty():
+		_idle_frame = 0
+		_idle_timer = 0.0
+		_was_moving_last_frame = false
+		_apply_frame()
+		return
+
+	if _was_moving_last_frame:
+		_idle_frame = 0
+		_idle_timer = 0.0
+		_was_moving_last_frame = false
+	else:
+		_idle_timer += delta
+		if _idle_timer >= _idle_frame_interval:
+			_idle_timer -= _idle_frame_interval
+			_idle_frame = (_idle_frame + 1) % _idle_frames.size()
+
+	var tex: Texture2D = _idle_frames[_idle_frame]
+	if sprite and tex and (tex != _last_texture or _last_flip_h):
+		sprite.texture = tex
+		sprite.flip_h = false
+		_last_texture = tex
+		_last_flip_h = false
+		sprite.offset.y = 0.0
+
+func _get_walk_frame_count(direction: String) -> int:
+	var frames = _directional_frames.get(direction, [])
+	if frames.size() > 0:
+		return frames.size()
+
+	if direction == "left" and _directional_frames.get("right", []).size() > 0:
+		return _directional_frames["right"].size()
+	if direction == "right" and _directional_frames.get("left", []).size() > 0:
+		return _directional_frames["left"].size()
+	if _directional_frames.get("down", []).size() > 0:
+		return _directional_frames["down"].size()
+	return 1
+
+func _resolve_frame_direction(direction: String) -> Dictionary:
+	var base_dir = direction
+	var flip := false
+
+	if direction in ["down_left", "up_left"]:
+		base_dir = "down" if direction == "down_left" else "up"
 		flip = true
-	elif _current_direction in ["down_right", "up_right"]:
-		if _current_direction == "down_right":
-			base_dir = "down"
-		else:
-			base_dir = "up"
+	elif direction in ["down_right", "up_right"]:
+		base_dir = "down" if direction == "down_right" else "up"
 
 	var frames = _directional_frames.get(base_dir, [])
+	if frames.size() == 0 and base_dir == "left":
+		frames = _directional_frames.get("right", [])
+		flip = true
+	elif frames.size() == 0 and base_dir == "right":
+		frames = _directional_frames.get("left", [])
+		flip = true
+
+	if frames.size() == 0:
+		base_dir = "down"
+		frames = _directional_frames.get(base_dir, [])
+		flip = false
+
+	return {"frames": frames, "flip": flip}
+
+func _apply_frame():
+	var resolved = _resolve_frame_direction(_current_direction)
+	var frames: Array = resolved["frames"]
 	if frames.size() == 0:
 		return
 
-	var tex: Texture2D = frames[0]
-
-	if _walk_frame < frames.size():
-		tex = frames[_walk_frame]
+	var flip: bool = resolved["flip"]
+	var tex: Texture2D = frames[_walk_frame % frames.size()]
 
 	if sprite and (tex != _last_texture or flip != _last_flip_h):
 		sprite.texture = tex
@@ -368,7 +491,7 @@ func _apply_frame():
 	# 行走时身体上下起伏
 	if sprite:
 		if velocity.length() > 10:
-			var bob_offsets = [-3.0, 0.0, 3.0]
+			var bob_offsets = [-2.0, 0.0, 2.0]
 			sprite.offset.y = bob_offsets[_walk_frame % 3]
 		else:
 			sprite.offset.y = 0.0

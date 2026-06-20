@@ -1,0 +1,171 @@
+[gd_scene format=3]
+
+[ext_resource type="Script" path="res://scripts/special_scene.gd" id="1_script"]
+[ext_resource type="Texture2D" path="res://assets/backgrounds/underground/白天.png" id="2_bg"]
+[ext_resource type="PackedScene" path="res://scenes/player.tscn" id="3_player"]
+[ext_resource type="PackedScene" path="res://scenes/dialogue_ui.tscn" id="4_dialogue"]
+[ext_resource type="PackedScene" path="res://scenes/interaction_prompt.tscn" id="5_prompt"]
+[ext_resource type="PackedScene" path="res://scenes/quest_panel.tscn" id="6_quest"]
+[ext_resource type="PackedScene" path="res://scenes/character_panel.tscn" id="7_char_panel"]
+[ext_resource type="PackedScene" path="res://scenes/npc.tscn" id="8_npc"]
+[ext_resource type="PackedScene" path="res://scenes/map_panel.tscn" id="9_map_panel"]
+[ext_resource type="Texture2D" path="res://assets/ui/teleport/return_to_street_pad.png" id="10_return_icon"]
+[ext_resource type="Texture2D" path="res://assets/ui/teleport/underground_anomaly_portal.png" id="11_portal_icon"]
+[ext_resource type="Script" path="res://scripts/underground_ambient.gd" id="12_ambient"]
+
+[sub_resource type="RectangleShape2D" id="WallTop_shape"]
+size = Vector2(1672, 10)
+
+[sub_resource type="RectangleShape2D" id="WallBottom_shape"]
+size = Vector2(1672, 10)
+
+[sub_resource type="RectangleShape2D" id="WallLeft_shape"]
+size = Vector2(10, 941)
+
+[sub_resource type="RectangleShape2D" id="WallRight_shape"]
+size = Vector2(10, 941)
+
+[sub_resource type="RectangleShape2D" id="TopSceneryAirWall_shape"]
+size = Vector2(1672, 140)
+
+[sub_resource type="RectangleShape2D" id="RailTrenchAirWall_shape"]
+size = Vector2(260, 720)
+
+[sub_resource type="RectangleShape2D" id="ForegroundAirWall_shape"]
+size = Vector2(1672, 100)
+
+[sub_resource type="CircleShape2D" id="ReturnZone_shape"]
+radius = 52.0
+
+[sub_resource type="CircleShape2D" id="AnomalyZone_shape"]
+radius = 64.0
+
+[node name="Underground" type="Node2D"]
+script = ExtResource("1_script")
+scene_title = "地下站台"
+scene_manager_scene_name = "UNDERGROUND"
+background_path = "res://assets/backgrounds/underground/白天.png"
+background_day_path = "res://assets/backgrounds/underground/白天.png"
+background_dusk_path = "res://assets/backgrounds/underground/傍晚.png"
+background_night_path = "res://assets/backgrounds/underground/黑夜.png"
+background_rain_night_path = "res://assets/backgrounds/underground/雨夜.png"
+return_scene_name = "STREET"
+prompt_key = "return_to_street"
+portal_scene_name = "ANOMALY_SPACE"
+portal_prompt_key = "enter_anomaly_space"
+
+[node name="Background" type="Sprite2D" parent="." groups=["background"]]
+position = Vector2(836, 470.5)
+texture = ExtResource("2_bg")
+
+[node name="Tint" type="ColorRect" parent="."]
+anchors_preset = 0
+offset_left = 0.0
+offset_top = 0.0
+offset_right = 1672.0
+offset_bottom = 941.0
+color = Color(0.0, 0.08, 0.08, 0.18)
+mouse_filter = 2
+
+[node name="UndergroundAmbient" type="Node2D" parent="."]
+script = ExtResource("12_ambient")
+
+[node name="Bounds" type="Node2D" parent="."]
+
+[node name="WallTop" type="StaticBody2D" parent="Bounds"]
+position = Vector2(836, 5)
+collision_layer = 2
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="Bounds/WallTop"]
+shape = SubResource("WallTop_shape")
+
+[node name="WallBottom" type="StaticBody2D" parent="Bounds"]
+position = Vector2(836, 936)
+collision_layer = 2
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="Bounds/WallBottom"]
+shape = SubResource("WallBottom_shape")
+
+[node name="WallLeft" type="StaticBody2D" parent="Bounds"]
+position = Vector2(5, 470)
+collision_layer = 2
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="Bounds/WallLeft"]
+shape = SubResource("WallLeft_shape")
+
+[node name="WallRight" type="StaticBody2D" parent="Bounds"]
+position = Vector2(1667, 470)
+collision_layer = 2
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="Bounds/WallRight"]
+shape = SubResource("WallRight_shape")
+
+[node name="TopSceneryAirWall" type="StaticBody2D" parent="Bounds"]
+position = Vector2(836, 70)
+collision_layer = 2
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="Bounds/TopSceneryAirWall"]
+shape = SubResource("TopSceneryAirWall_shape")
+
+[node name="RailTrenchAirWall" type="StaticBody2D" parent="Bounds"]
+position = Vector2(1545, 500)
+collision_layer = 2
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="Bounds/RailTrenchAirWall"]
+shape = SubResource("RailTrenchAirWall_shape")
+
+[node name="ForegroundAirWall" type="StaticBody2D" parent="Bounds"]
+position = Vector2(836, 900)
+collision_layer = 2
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="Bounds/ForegroundAirWall"]
+shape = SubResource("ForegroundAirWall_shape")
+
+[node name="ReturnZone" type="Area2D" parent="."]
+position = Vector2(140, 790)
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="ReturnZone"]
+shape = SubResource("ReturnZone_shape")
+
+[node name="ReturnZoneVisual" type="Sprite2D" parent="."]
+position = Vector2(140, 790)
+scale = Vector2(0.38, 0.38)
+texture = ExtResource("10_return_icon")
+z_index = 34
+
+[node name="AnomalyZone" type="Area2D" parent="."]
+position = Vector2(836, 320)
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="AnomalyZone"]
+shape = SubResource("AnomalyZone_shape")
+
+[node name="AnomalyZoneVisual" type="Sprite2D" parent="."]
+position = Vector2(836, 320)
+scale = Vector2(0.5, 0.5)
+texture = ExtResource("11_portal_icon")
+z_index = 36
+
+[node name="NPCs" type="Node" parent="."]
+
+[node name="NPC_SunYue" parent="NPCs" instance=ExtResource("8_npc")]
+position = Vector2(780, 610)
+npc_name = "sun_yue"
+npc_title = "异常现象研究员"
+wander_range = 80.0
+patrol_points = Array[Vector2]([Vector2(780, 610), Vector2(900, 600), Vector2(930, 710), Vector2(760, 720)])
+
+[node name="PlayerSpawn" type="Marker2D" parent="."]
+position = Vector2(836, 700)
+
+[node name="Player" parent="." instance=ExtResource("3_player")]
+position = Vector2(836, 700)
+
+[node name="DialogueUI" parent="." instance=ExtResource("4_dialogue")]
+
+[node name="InteractionPrompt" parent="." instance=ExtResource("5_prompt")]
+
+[node name="QuestPanel" parent="." instance=ExtResource("6_quest")]
+
+[node name="CharacterPanel" parent="." instance=ExtResource("7_char_panel")]
+
+[node name="MapPanel" parent="." instance=ExtResource("9_map_panel")]

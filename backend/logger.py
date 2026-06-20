@@ -1,16 +1,21 @@
 import os
 import logging
 from datetime import datetime
+from pathlib import Path
 from logging.handlers import TimedRotatingFileHandler
 
 class CyberTownLogger:
     """双输出日志系统：控制台 + 文件（按日期分割）"""
     
-    def __init__(self, name="cyber_town", log_dir="logs"):
+    def __init__(self, name="cyber_town", log_dir=None):
         self.logger = logging.getLogger(name)
         self.logger.setLevel(logging.DEBUG)
         
         if not self.logger.handlers:
+            if log_dir is None:
+                log_dir = os.getenv("LOG_DIR") or Path(__file__).resolve().parent / "logs"
+            if not os.path.isabs(log_dir):
+                log_dir = Path(__file__).resolve().parent / log_dir
             os.makedirs(log_dir, exist_ok=True)
             
             formatter = logging.Formatter(

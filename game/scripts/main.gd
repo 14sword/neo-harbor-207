@@ -8,6 +8,26 @@ var api_client: Node = null
 var status_update_timer: float = 0.0
 var interaction_timer: float = 0.0
 const INTERACTION_INTERVAL: float = 90.0
+const NPC_DISPLAY_NAMES = {
+	"zhang_san": "张三",
+	"li_si": "李四",
+	"wang_wu": "王五",
+	"chen_xi": "陈曦",
+	"zhao_lin": "赵霖",
+	"sun_yue": "孙悦",
+	"liu_feng": "刘风",
+	"he_zhen": "何真",
+}
+const NPC_ID_BY_DISPLAY_NAME = {
+	"张三": "zhang_san",
+	"李四": "li_si",
+	"王五": "wang_wu",
+	"陈曦": "chen_xi",
+	"赵霖": "zhao_lin",
+	"孙悦": "sun_yue",
+	"刘风": "liu_feng",
+	"何真": "he_zhen",
+}
 
 var _near_exit: bool = false
 
@@ -121,7 +141,21 @@ func update_npc_dialogue(npc_name: String, dialogue: String):
 		npc_node.update_dialogue(dialogue)
 
 func get_npc_node(npc_name: String) -> Node2D:
-	match npc_name:
+	var canonical_id = _canonical_npc_id(npc_name)
+	var legacy_node = _get_legacy_npc_node(canonical_id)
+	if legacy_node:
+		return legacy_node
+	return _find_npc_node(canonical_id, npc_name)
+
+func get_npc_node_by_id(npc_id: String) -> Node2D:
+	var canonical_id = _canonical_npc_id(npc_id)
+	var legacy_node = _get_legacy_npc_node(canonical_id)
+	if legacy_node:
+		return legacy_node
+	return _find_npc_node(canonical_id, npc_id)
+
+func _get_legacy_npc_node(canonical_id: String) -> Node2D:
+	match canonical_id:
 		"张三", "zhang_san":
 			return npc_zhang
 		"李四", "li_si":
@@ -131,16 +165,27 @@ func get_npc_node(npc_name: String) -> Node2D:
 		_:
 			return null
 
-func get_npc_node_by_id(npc_id: String) -> Node2D:
-	match npc_id:
-		"zhang_san":
-			return npc_zhang
-		"li_si":
-			return npc_li
-		"wang_wu":
-			return npc_wang
-		_:
-			return null
+func _find_npc_node(canonical_id: String, fallback_name: String) -> Node2D:
+	var display_name = NPC_DISPLAY_NAMES.get(canonical_id, fallback_name)
+	for node in get_tree().get_nodes_in_group("npcs"):
+		if not (node is Node2D):
+			continue
+		var node_id = str(node.get("npc_name")).strip_edges()
+		var node_display = str(node.get("display_name")).strip_edges()
+		var scene_name = str(node.name).strip_edges()
+		if node_id == canonical_id or node_id == fallback_name:
+			return node
+		if node_display == display_name or node_display == fallback_name:
+			return node
+		if scene_name == canonical_id or scene_name == fallback_name:
+			return node
+	return null
+
+func _canonical_npc_id(npc_name: String) -> String:
+	var clean_name = npc_name.strip_edges()
+	if NPC_ID_BY_DISPLAY_NAME.has(clean_name):
+		return NPC_ID_BY_DISPLAY_NAME[clean_name]
+	return clean_name
 
 func _log_event(message: String):
 	if has_node("/root/LogPanel"):

@@ -216,63 +216,70 @@ func _build_ui():
 	open_tween.parallel().tween_property(_outer_frame, "scale", Vector2(1, 1), 0.15)
 
 func _build_news_pool():
-	var phase = "day"
+	var phase = _get_phase_key()
+	_news_pool.clear()
+	if has_node("/root/DailyWorldGenerator"):
+		var dwg = get_node("/root/DailyWorldGenerator")
+		if dwg.has_method("get_daily_news_items"):
+			_append_news_items(dwg.get_daily_news_items(phase))
+	if _news_pool.is_empty():
+		_append_news_items(_get_fallback_news_pool(phase))
+	_current_index = 0
+
+func _append_news_items(items: Array) -> void:
+	for item in items:
+		if item is Dictionary:
+			_news_pool.append(item)
+
+func _get_phase_key() -> String:
 	if has_node("/root/DayNightManager"):
 		var dnm = get_node("/root/DayNightManager")
 		match dnm.current_phase:
 			dnm.DayPhase.NIGHT:
-				phase = "night"
+				return "night"
 			dnm.DayPhase.RAIN_NIGHT:
-				phase = "rain"
+				return "rain"
 			_:
-				phase = "day"
+				return "day"
+	return "day"
 
+func _get_fallback_news_pool(phase: String) -> Array:
 	match phase:
 		"day":
-			_news_pool = [
-				{"channel": "◆ CH-07 都市新闻", "text": "[color=#00EEFF]DATAWHALE[/color] 最新AI模型通过图灵测试，引发业界热议。专家表示这标志着人工智能进入新纪元。"},
-				{"channel": "◆ CH-12 天气频道", "text": "今日天气晴朗，紫外线指数中等。建议外出时佩戴防蓝光眼镜。明日多云转雨，夜间有雷暴预警。"},
-				{"channel": "◆ CH-03 生活频道", "text": "未来茶楼新品上市：全息奶茶，融合传统与科技。首杯半价，欢迎品尝。"},
-				{"channel": "◆ CH-07 都市新闻", "text": "新城区商业综合体今日开放，内含全息影院和无人机配送中心。首日客流预计突破5万。"},
-				{"channel": "◆ CH-19 交通频道", "text": "高架列车全线正常运行，预计客流高峰17:00-19:00。建议错峰出行。"},
-				{"channel": "◆ CH-03 生活频道", "text": "赛博街区新开拉面店「霓虹面馆」，老板据说是退役黑客。招牌全息拉面视觉效果满分。"},
-				{"channel": "◆ CH-07 都市新闻", "text": "城市安全指数本月上升3个百分点。网络犯罪率下降7%，但异常事件报告同比增加12%。"},
+			return [
+				{"channel": "◆ CH-12 天气频道", "title": "今日天气档案", "text": "天气数据接收中，城市运行稳定。", "image_category": "tv_weather", "severity": "normal"},
+				{"channel": "◆ CH-07 都市新闻", "title": "城市运行简报", "text": "公共终端同步完成，街区服务正常开放。", "image_category": "tv_city", "severity": "normal"},
+				{"channel": "◆ CH-03 生活频道", "title": "社区生活", "text": "便利店和茶饮店推出今日推荐。", "image_category": "tv_life", "severity": "normal"},
 			]
 		"rain":
-			_news_pool = [
-				{"channel": "◆ CH-07 都市新闻", "text": "雷暴预警：今晚雷暴概率67%，建议减少外出。电子设备请做好防护措施。"},
-				{"channel": "◆ CH-12 天气频道", "text": "雨势预计持续至凌晨3点，注意电子设备防护。明日天气多云转晴。"},
-				{"channel": "◆ CH-03 生活频道", "text": "深夜便利店推出雨夜配送服务，30分钟送达。配送费全免。"},
-				{"channel": "◆ CH-19 交通频道", "text": "地铁运行间隔临时调整为8分钟，请耐心等待。高架列车维持正常运行。"},
-				{"channel": "◆ CH-07 都市新闻", "text": "区域3临时停电，原因不明。电力管理局正在排查，预计3小时内恢复。"},
+			return [
+				{"channel": "◆ CH-12 天气频道", "title": "雨夜预警", "text": "雨势增强，建议减少外出并保护电子设备。", "image_category": "tv_weather", "severity": "warning"},
+				{"channel": "◆ CH-19 交通频道", "title": "交通调整", "text": "高架列车与无人机配送路线进入雨夜模式。", "image_category": "tv_traffic", "severity": "warning"},
+				{"channel": "◆ CH-03 生活频道", "title": "雨夜服务", "text": "便利店配送窗口保持开放。", "image_category": "tv_life", "severity": "normal"},
 			]
 		"night":
-			_news_pool = [
-				{"channel": "◆ CH-?? 未知频道", "text": "[color=#CC33FF]▓▓▓ 信号中断 ▓▓▓ 信号中断 ▓▓▓[/color]"},
-				{"channel": "◆ CH-07 都市新闻", "text": "[color=#CC33FF]区域3临时停电，原因不明。请保持冷静。请勿关闭终端。[/color]"},
-				{"channel": "◆ CH-?? 异常播报", "text": "[color=#CC33FF]观测等级已更新。请勿关闭终端。重复。请勿关闭终端。[/color]"},
-				{"channel": "◆ CH-12 天气频道", "text": "紫雨概率：3%。无需特殊防护。气象中心将持续监测。"},
-				{"channel": "◆ CH-03 生活频道", "text": "深夜食堂仍在营业。老板说今晚的客人比平时少。隔壁便利店的灯光忽明忽暗。"},
+			return [
+				{"channel": "◆ CH-?? 异常播报", "title": "信号中断", "text": "监测图层出现短暂空白，请勿关闭终端。", "image_category": "tv_anomaly", "severity": "warning"},
+				{"channel": "◆ CH-12 天气频道", "title": "深夜天气", "text": "气象图层进入低功耗转播。", "image_category": "tv_weather", "severity": "normal"},
+				{"channel": "◆ CH-03 生活频道", "title": "深夜服务", "text": "街角便利店仍在营业。", "image_category": "tv_life", "severity": "normal"},
 			]
-
-	if has_node("/root/DailyWorldGenerator"):
-		var dwg = get_node("/root/DailyWorldGenerator")
-		var weather = dwg.get_daily_weather()
-		if not weather.is_empty():
-			var weather_item = {"channel": "◆ CH-12 天气频道", "text": "%s %s | 温度: %s | 湿度: %s\n%s" % [weather.get("icon", ""), weather.get("name", ""), weather.get("temperature", ""), weather.get("humidity", ""), weather.get("desc", "")]}
-			_news_pool.append(weather_item)
-		var events = dwg.get_daily_events()
-		for event in events:
-			_news_pool.append({"channel": "◆ CH-07 都市新闻", "text": "[color=#00EEFF]今日快讯[/color] " + event})
-	_current_index = randi() % _news_pool.size()
+	return []
 
 func _show_current():
 	if _news_pool.is_empty():
 		return
 	var item = _news_pool[_current_index]
-	_channel_label.text = item.channel
-	_news_text.text = item.text
+	_channel_label.text = item.get("channel", "◆ CH-07 都市新闻")
+	_news_text.text = _format_news_text(item)
 	_load_news_image()
+
+func _format_news_text(item: Dictionary) -> String:
+	var title = item.get("title", "")
+	var body = item.get("text", "")
+	if title.is_empty():
+		return body
+	var title_color = "#CC33FF" if item.get("severity", "normal") == "warning" else "#00EEFF"
+	return "[color=%s]%s[/color]\n%s" % [title_color, title, body]
 
 func _load_news_image():
 	if not _news_image:
@@ -295,28 +302,25 @@ func _load_news_image():
 
 func _get_image_category_for_channel() -> String:
 	if _news_pool.is_empty():
-		return "city_day"
+		return "tv_city"
 	var item = _news_pool[_current_index]
+	var explicit_category = item.get("image_category", "")
+	if not explicit_category.is_empty():
+		return explicit_category
 	var channel = item.get("channel", "")
 	if "天气" in channel:
-		return "weather"
+		return "tv_weather"
 	if _is_night:
 		if "异常" in channel or "??" in channel:
-			return "anomaly"
-		return "city_night"
+			return "tv_anomaly"
+		return "tv_city"
 	if "交通" in channel:
-		return "surveillance"
+		return "tv_traffic"
 	if "生活" in channel:
-		return "ads"
+		return "tv_life"
 	if "都市" in channel:
-		if has_node("/root/DayNightManager"):
-			var dnm = get_node("/root/DayNightManager")
-			if dnm.current_phase == dnm.DayPhase.RAIN_NIGHT:
-				return "city_rain"
-		return "city_day"
-	if has_node("/root/MediaManager"):
-		return get_node("/root/MediaManager").get_category_for_phase()
-	return "city_day"
+		return "tv_city"
+	return "tv_city"
 
 func _update_date_label():
 	if not _date_label:
@@ -369,6 +373,9 @@ func _apply_style():
 
 func _on_phase_changed(_new_phase):
 	_is_night = _check_night()
+	_build_news_pool()
+	_show_current()
+	_update_date_label()
 	_apply_style()
 
 func _start_night_pulse():
@@ -422,7 +429,7 @@ func _on_close():
 func _on_media_image_ready(category: String, texture: Texture2D):
 	if not is_instance_valid(_news_image):
 		return
-	var valid_cats = ["weather", "anomaly", "surveillance", "ads", "city_day", "city_rain", "city_night"]
+	var valid_cats = ["weather", "anomaly", "surveillance", "ads", "city_day", "city_rain", "city_night", "tv_weather", "tv_city", "tv_life", "tv_traffic", "tv_anomaly"]
 	if category not in valid_cats:
 		return
 	if texture and _news_image.visible:

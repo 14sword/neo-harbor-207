@@ -1,5 +1,7 @@
 extends Control
 
+const CLASS_NAMES = ["cipher", "chrome", "echo", "shadow"]
+
 var _selected_class: int = 0
 var _last_class_preview_requested: int = -1
 var _anim_time: float = 0.0
@@ -19,7 +21,16 @@ var _idle_timer: float = 0.0
 const IDLE_FRAME_INTERVAL: float = 0.12
 var _use_anime_style: bool = false
 var _texture_cache: Dictionary = {}
+var _style_cache: Dictionary = {}
+var _pending_idle_loads: Dictionary = {}
+var _active_idle_key: String = ""
+var _class_selected_once: bool = false
 var _frame_counter: int = 0
+var _left_bar_tween: Tween = null
+var _stat_tweens: Array[Tween] = []
+var _bg_color_tween: Tween = null
+var _scan_color_tween: Tween = null
+var _scan_bar_tween: Tween = null
 
 var _left_field_labels: Array = []
 var _left_field_values: Array = []
@@ -185,11 +196,13 @@ func _ready() -> void:
 	_connect_signals()
 	_build_static_panels()
 	_select_class(0)
+	_prewarm_style_frames()
 	_next_anomaly_time = 30.0 + randf() * 15.0
 	_update_style_indicator()
 
 func _process(delta: float) -> void:
 	_anim_time += delta
+	_poll_idle_loads()
 	_update_idle_animation(delta)
 
 	_frame_counter += 1
@@ -295,11 +308,7 @@ func _build_class_tabs() -> void:
 		btn.text = data["name_en"]
 		btn.custom_minimum_size = Vector2(80, 28)
 		btn.mouse_filter = Control.MOUSE_FILTER_PASS
-		var normal_style = StyleBoxFlat.new()
-		normal_style.bg_color = Color(data.color.r * 0.08, data.color.g * 0.08, data.color.b * 0.08, 0.9)
-		normal_style.set_border_width_all(1)
-		normal_style.border_color = Color(data.color.r, data.color.g, data.color.b, 0.3)
-		normal_style.set_corner_radius_all(4)
+		var normal_style = _make_tab_style(data, false)
 		btn.add_theme_stylebox_override("normal", normal_style)
 		var hover_style = StyleBoxFlat.new()
 		hover_style.bg_color = Color(data.color.r * 0.15, data.color.g * 0.15, data.color.b * 0.15, 0.95)
@@ -314,7 +323,37 @@ func _build_class_tabs() -> void:
 		btn.mouse_entered.connect(_on_class_hovered.bind(data))
 		btn.mouse_exited.connect(_on_class_unhovered)
 		_class_tabs.add_child(btn)
-		_class_tabs_data.append({"btn": btn, "data": data, "idx": data["id"]})
+		_class_tabs_data.append({
+			"btn": btn,
+			"data": data,
+			"idx": data["id"],
+			"normal_style": normal_style,
+			"selected_style": _make_tab_style(data, true),
+		})
+
+func _make_tab_style(data: Dictionary, selected: bool) -> StyleBoxFlat:
+	var s = StyleBoxFlat.new()
+	s.set_corner_radius_all(4)
+	if selected:
+		s.bg_color = Color(data.color.r * 0.2, data.color.g * 0.2, data.color.b * 0.2, 0.95)
+		s.set_border_width_all(2)
+		s.border_color = data.color
+		s.shadow_color = Color(data.color.r, data.color.g, data.color.b, 0.3)
+		s.shadow_size = 8
+	else:
+		s.bg_color = Color(data.color.r * 0.08, data.color.g * 0.08, data.color.b * 0.08, 0.9)
+		s.set_border_width_all(1)
+		s.border_color = Color(data.color.r, data.color.g, data.color.b, 0.3)
+	return s
+
+func _get_fill_style(cache_key: String, color: Color) -> StyleBoxFlat:
+	if _style_cache.has(cache_key):
+		return _style_cache[cache_key]
+	var style = StyleBoxFlat.new()
+	style.bg_color = color
+	style.set_corner_radius_all(2)
+	_style_cache[cache_key] = style
+	return style
 
 func _on_tab_press(idx: int) -> void:
 	_select_class(idx)
@@ -379,8 +418,6 @@ func _apply_confirm_styles() -> void:
 func _connect_signals() -> void:
 	if _confirm_btn:
 		_confirm_btn.pressed.connect(_on_confirm)
-	if has_node("/root/MediaManager"):
-		get_node("/root/MediaManager").class_portrait_ready.connect(_on_class_portrait_ready)
 
 func _build_static_panels() -> void:
 	if _archive_content:
@@ -483,7 +520,10 @@ func _build_static_panels() -> void:
 		_affinity_box.add_child(hbox)
 		_affinity_labels.append({"hbox": hbox, "icon": icon, "label": lbl})
 
-func _select_class(idx: int) -> void:
+func _select_class(idx: int, force: bool = false) -> void:
+	if _class_selected_once and idx == _selected_class and not force:
+		return
+	_class_selected_once = true
 	_selected_class = idx
 	var data = CLASS_DATA[idx]
 	_current_accent = data.color
@@ -500,34 +540,104 @@ func _load_idle_animation(class_id: int) -> void:
 	_idle_frame_idx = 0
 	_idle_timer = 0.0
 
-	var class_names = ["cipher", "chrome", "echo", "shadow"]
-	if class_id < 0 or class_id >= class_names.size():
+	if class_id < 0 or class_id >= CLASS_NAMES.size():
 		return
-	var cname = class_names[class_id]
-	var style_prefix = "anime_" if _use_anime_style else ""
-	var cache_key = style_prefix + cname
+	var cache_key = _idle_cache_key(class_id)
+	_active_idle_key = cache_key
 
 	if _texture_cache.has(cache_key):
-		_idle_frames = _texture_cache[cache_key]
+		_apply_idle_frames(_texture_cache[cache_key])
 	else:
-		var subdir = "anime/" if _use_anime_style else ""
-		var base_path = "res://assets/characters/select/idle/" + subdir + cname
-		for i in range(12):
-			var path = base_path + "/" + cname + "_idle_%d.jpg" % i
-			if ResourceLoader.exists(path):
-				var tex = load(path)
-				if tex:
-					_idle_frames.append(tex)
-		_texture_cache[cache_key] = _idle_frames
+		_show_static_class_sprite(class_id)
+		_request_idle_frames(class_id)
 
+func _idle_cache_key(class_id: int) -> String:
+	var style_prefix = "anime_" if _use_anime_style else "real_"
+	return style_prefix + CLASS_NAMES[class_id]
+
+func _idle_frame_paths(class_id: int) -> Array[String]:
+	var paths: Array[String] = []
+	var cname = CLASS_NAMES[class_id]
+	var subdir = "anime/" if _use_anime_style else ""
+	var base_path = "res://assets/characters/select/idle/" + subdir + cname
+	for i in range(12):
+		var path = base_path + "/" + cname + "_idle_%d.jpg" % i
+		if ResourceLoader.exists(path) or FileAccess.file_exists(path):
+			paths.append(path)
+	return paths
+
+func _show_static_class_sprite(class_id: int) -> void:
+	if not _char_anim_rect or class_id < 0 or class_id >= CLASS_DATA.size():
+		return
+	var path = CLASS_DATA[class_id].get("sprite_path", "")
+	if path.is_empty():
+		_char_anim_rect.texture = null
+		return
+	if ResourceLoader.exists(path) or FileAccess.file_exists(path):
+		var tex = ResourceLoader.load(path, "", ResourceLoader.CACHE_MODE_REUSE)
+		if tex is Texture2D:
+			_char_anim_rect.texture = tex
+
+func _request_idle_frames(class_id: int) -> void:
+	if class_id < 0 or class_id >= CLASS_NAMES.size():
+		return
+	var cache_key = _idle_cache_key(class_id)
+	if _texture_cache.has(cache_key) or _pending_idle_loads.has(cache_key):
+		return
+	var paths = _idle_frame_paths(class_id)
+	if paths.is_empty():
+		return
+	for path in paths:
+		ResourceLoader.load_threaded_request(path, "Texture2D", false, ResourceLoader.CACHE_MODE_REUSE)
+	_pending_idle_loads[cache_key] = {"paths": paths}
+
+func _prewarm_style_frames() -> void:
+	for class_id in range(CLASS_NAMES.size()):
+		_request_idle_frames(class_id)
+
+func _poll_idle_loads() -> void:
+	if _pending_idle_loads.is_empty():
+		return
+	var finished_keys: Array[String] = []
+	for cache_key in _pending_idle_loads.keys():
+		var paths: Array = _pending_idle_loads[cache_key].get("paths", [])
+		var all_done = true
+		for path in paths:
+			var status = ResourceLoader.load_threaded_get_status(path)
+			if status == ResourceLoader.THREAD_LOAD_IN_PROGRESS:
+				all_done = false
+				break
+		if not all_done:
+			continue
+
+		var frames: Array[Texture2D] = []
+		for path in paths:
+			if ResourceLoader.load_threaded_get_status(path) == ResourceLoader.THREAD_LOAD_LOADED:
+				var tex = ResourceLoader.load_threaded_get(path)
+				if tex is Texture2D:
+					frames.append(tex)
+		_texture_cache[cache_key] = frames
+		finished_keys.append(cache_key)
+		if cache_key == _active_idle_key:
+			_apply_idle_frames(frames)
+
+	for cache_key in finished_keys:
+		_pending_idle_loads.erase(cache_key)
+
+func _apply_idle_frames(frames: Array) -> void:
+	_idle_frames.clear()
+	for tex in frames:
+		if tex is Texture2D:
+			_idle_frames.append(tex)
+	_idle_frame_idx = 0
+	_idle_timer = 0.0
 	if _idle_frames.size() > 0 and _char_anim_rect:
 		_char_anim_rect.texture = _idle_frames[0]
-	elif _char_anim_rect:
-		_char_anim_rect.texture = null
 
 func _toggle_visual_style() -> void:
 	_use_anime_style = not _use_anime_style
-	_select_class(_selected_class)
+	_select_class(_selected_class, true)
+	_prewarm_style_frames()
 	_update_style_indicator()
 
 func _update_style_indicator() -> void:
@@ -543,21 +653,12 @@ func _update_tab_styles() -> void:
 		var btn = tab_info["btn"]
 		var data = tab_info["data"]
 		var is_selected = tab_info["idx"] == _selected_class
-		var s = StyleBoxFlat.new()
-		s.set_corner_radius_all(4)
 		if is_selected:
-			s.bg_color = Color(data.color.r * 0.2, data.color.g * 0.2, data.color.b * 0.2, 0.95)
-			s.set_border_width_all(2)
-			s.border_color = data.color
-			s.shadow_color = Color(data.color.r, data.color.g, data.color.b, 0.3)
-			s.shadow_size = 8
+			btn.add_theme_stylebox_override("normal", tab_info["selected_style"])
 			btn.add_theme_color_override("font_color", data.color)
 		else:
-			s.bg_color = Color(data.color.r * 0.08, data.color.g * 0.08, data.color.b * 0.08, 0.9)
-			s.set_border_width_all(1)
-			s.border_color = Color(data.color.r, data.color.g, data.color.b, 0.3)
+			btn.add_theme_stylebox_override("normal", tab_info["normal_style"])
 			btn.add_theme_color_override("font_color", Color(data.color.r, data.color.g, data.color.b, 0.7))
-		btn.add_theme_stylebox_override("normal", s)
 
 func _update_left_panel(data: Dictionary) -> void:
 	if _left_field_values.size() < 6:
@@ -566,12 +667,12 @@ func _update_left_panel(data: Dictionary) -> void:
 	_left_field_values[1].text = str(data["residence"])
 	_left_bar_val_lbl.text = str(data["sync_rate"]) + "%"
 	_left_bar_val_lbl.add_theme_color_override("font_color", data.color)
-	var bar_fg = StyleBoxFlat.new()
-	bar_fg.bg_color = Color(data.color.r, data.color.g, data.color.b, 0.75)
-	bar_fg.set_corner_radius_all(2)
+	var bar_fg = _get_fill_style("left_" + str(data["id"]), Color(data.color.r, data.color.g, data.color.b, 0.75))
 	_left_bar.add_theme_stylebox_override("fill", bar_fg)
-	var tw = create_tween()
-	tw.tween_property(_left_bar, "value", float(data["sync_rate"]), 0.4).set_ease(Tween.EASE_OUT)
+	if _left_bar_tween and is_instance_valid(_left_bar_tween):
+		_left_bar_tween.kill()
+	_left_bar_tween = create_tween()
+	_left_bar_tween.tween_property(_left_bar, "value", float(data["sync_rate"]), 0.4).set_ease(Tween.EASE_OUT)
 	_left_field_values[3].text = str(data["risk_level"])
 	var risk_color = Color(0.3, 0.9, 0.5, 1)
 	if str(data["risk_level"]) == "MONITORED":
@@ -611,14 +712,16 @@ func _update_center_panel(data: Dictionary) -> void:
 			_trait_label.text = "> " + data["name_en"] + " // " + data["keywords"][0]
 		_trait_label.add_theme_color_override("font_color", Color(data.color.r, data.color.g, data.color.b, 0.85))
 
-	_request_class_preview(data["id"])
-
 func _update_right_panel(data: Dictionary) -> void:
 	_update_stats(data)
 	_update_skills(data)
 	_update_affinity(data)
 
 func _update_stats(data: Dictionary) -> void:
+	for tw in _stat_tweens:
+		if tw and is_instance_valid(tw):
+			tw.kill()
+	_stat_tweens.clear()
 	var stat_labels = {"int": "INT 智力", "per": "PER 感知", "agi": "AGI 敏捷", "cha": "CHA 社交"}
 	for key in ["int", "per", "agi", "cha"]:
 		if not _stat_bars.has(key):
@@ -627,15 +730,14 @@ func _update_stats(data: Dictionary) -> void:
 		s["label"].text = stat_labels[key]
 		s["val_lbl"].text = str(int(data["stats"][key]))
 		s["val_lbl"].add_theme_color_override("font_color", data.color)
-		var bar_fg = StyleBoxFlat.new()
-		bar_fg.bg_color = Color(data.color.r, data.color.g, data.color.b, 0.7)
-		bar_fg.set_corner_radius_all(2)
+		var bar_fg = _get_fill_style("stat_" + str(data["id"]) + "_" + key, Color(data.color.r, data.color.g, data.color.b, 0.7))
 		s["bar"].add_theme_stylebox_override("fill", bar_fg)
 		var stat_order = ["int", "per", "agi", "cha"]
 		var delay = float(stat_order.find(key)) * 0.1
 		var tw = create_tween()
 		tw.tween_interval(delay)
 		tw.tween_property(s["bar"], "value", float(data["stats"][key]), 0.4).set_ease(Tween.EASE_OUT)
+		_stat_tweens.append(tw)
 
 func _update_skills(data: Dictionary) -> void:
 	var skills = data.get("skills", [])
@@ -663,21 +765,27 @@ func _transition_bg_color(target_color: Color) -> void:
 	if not _city_bg or not _city_bg.material:
 		return
 	var accent = Color(target_color.r, target_color.g, target_color.b, 0.15)
-	var tw = create_tween()
-	tw.tween_property(_city_bg.material, "shader_parameter/accent_color", accent, 0.6)
+	if _bg_color_tween and is_instance_valid(_bg_color_tween):
+		_bg_color_tween.kill()
+	_bg_color_tween = create_tween()
+	_bg_color_tween.tween_property(_city_bg.material, "shader_parameter/accent_color", accent, 0.6)
 
 	if _scan_overlay and _scan_overlay.material:
 		var scan_color = Color(target_color.r, target_color.g, target_color.b, 0.03)
-		var tw2 = create_tween()
-		tw2.tween_property(_scan_overlay.material, "shader_parameter/line_color", scan_color, 0.6)
+		if _scan_color_tween and is_instance_valid(_scan_color_tween):
+			_scan_color_tween.kill()
+		_scan_color_tween = create_tween()
+		_scan_color_tween.tween_property(_scan_overlay.material, "shader_parameter/line_color", scan_color, 0.6)
 
 func _play_scan_animation() -> void:
 	if not _scan_bar:
 		return
 	_scan_bar.modulate.a = 0.0
-	var tw = create_tween()
-	tw.tween_property(_scan_bar, "modulate:a", 1.0, 0.2)
-	tw.tween_property(_scan_bar, "modulate:a", 0.4, 0.3)
+	if _scan_bar_tween and is_instance_valid(_scan_bar_tween):
+		_scan_bar_tween.kill()
+	_scan_bar_tween = create_tween()
+	_scan_bar_tween.tween_property(_scan_bar, "modulate:a", 1.0, 0.2)
+	_scan_bar_tween.tween_property(_scan_bar, "modulate:a", 0.4, 0.3)
 
 func _input(event: InputEvent) -> void:
 	if _fade_active:

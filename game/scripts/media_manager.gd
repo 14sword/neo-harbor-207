@@ -34,6 +34,15 @@ var _categories_base: Dictionary = {
 	"weather": "res://assets/media/weather/",
 	"talisman": "res://assets/media/talisman/",
 	"class_portrait": "res://assets/media/class_portrait/",
+	"terminal_news": "res://assets/media/terminal_news/",
+	"terminal_anomaly": "res://assets/media/terminal_anomaly/",
+	"terminal_life": "res://assets/media/terminal_life/",
+	"terminal_datawhale": "res://assets/media/terminal_datawhale/",
+	"tv_weather": "res://assets/media/tv_weather/",
+	"tv_city": "res://assets/media/tv_city/",
+	"tv_life": "res://assets/media/tv_life/",
+	"tv_traffic": "res://assets/media/tv_traffic/",
+	"tv_anomaly": "res://assets/media/tv_anomaly/",
 }
 
 var _size_map: Dictionary = {
@@ -48,6 +57,15 @@ var _size_map: Dictionary = {
 	"weather": Vector2i(1024, 576),
 	"talisman": Vector2i(720, 720),
 	"class_portrait": Vector2i(512, 512),
+	"terminal_news": Vector2i(1024, 576),
+	"terminal_anomaly": Vector2i(1024, 576),
+	"terminal_life": Vector2i(1024, 576),
+	"terminal_datawhale": Vector2i(1024, 576),
+	"tv_weather": Vector2i(1024, 576),
+	"tv_city": Vector2i(1024, 576),
+	"tv_life": Vector2i(1024, 576),
+	"tv_traffic": Vector2i(1024, 576),
+	"tv_anomaly": Vector2i(1024, 576),
 }
 
 var _source_map: Dictionary = {
@@ -62,6 +80,27 @@ var _source_map: Dictionary = {
 	"weather": "unsplash",
 	"talisman": "pollinations",
 	"class_portrait": "pollinations",
+	"terminal_news": "pollinations",
+	"terminal_anomaly": "pollinations",
+	"terminal_life": "pollinations",
+	"terminal_datawhale": "pollinations",
+	"tv_weather": "pollinations",
+	"tv_city": "pollinations",
+	"tv_life": "pollinations",
+	"tv_traffic": "pollinations",
+	"tv_anomaly": "pollinations",
+}
+
+var _local_gallery_categories: Dictionary = {
+	"terminal_news": true,
+	"terminal_anomaly": true,
+	"terminal_life": true,
+	"terminal_datawhale": true,
+	"tv_weather": true,
+	"tv_city": true,
+	"tv_life": true,
+	"tv_traffic": true,
+	"tv_anomaly": true,
 }
 
 var _unsplash_queries: Dictionary = {
@@ -144,17 +183,20 @@ func _scan_local_fallback():
 		_memory_cache[cat + "/_fallback"] = null
 		var base_path = _categories_base[cat]
 		for i in range(1, 6):
-			var path = base_path + cat + "_%03d.png" % i
-			if ResourceLoader.exists(path):
-				var f = FileAccess.open(path, FileAccess.READ)
-				if f:
-					var data = f.get_buffer(f.get_length())
-					f.close()
-					if _is_valid_image_data(data):
-						var res = ResourceLoader.load(path, "", ResourceLoader.CACHE_MODE_REUSE)
-						if res != null:
-							_memory_cache[cat + "/_fallback"] = res
-							break
+			for ext in ["webp", "png", "jpg"]:
+				var path = base_path + cat + "_%03d.%s" % [i, ext]
+				if ResourceLoader.exists(path):
+					var f = FileAccess.open(path, FileAccess.READ)
+					if f:
+						var data = f.get_buffer(f.get_length())
+						f.close()
+						if _is_valid_image_data(data):
+							var res = ResourceLoader.load(path, "", ResourceLoader.CACHE_MODE_REUSE)
+							if res != null:
+								_memory_cache[cat + "/_fallback"] = res
+								break
+			if _memory_cache[cat + "/_fallback"] != null:
+				break
 
 func _exit_tree():
 	for req in _dynamic_http_requests:
@@ -168,9 +210,15 @@ func _process(_delta):
 		_process_queue()
 
 func get_image_count(category: String) -> int:
+	var local_count = _get_local_gallery_count(category)
+	if local_count > 0:
+		return local_count
 	return 999
 
 func get_random_image(category: String) -> Texture2D:
+	var local_count = _get_local_gallery_count(category)
+	if local_count > 0:
+		return _load_local_gallery_texture(category, (randi() % local_count) + 1)
 	var cache_key = category + "/" + str(randi() % 999999)
 	if _memory_cache.has(cache_key) and _memory_cache[cache_key] != null:
 		return _memory_cache[cache_key]
@@ -185,6 +233,9 @@ func get_daily_image(category: String) -> Texture2D:
 	var day_seed = 1
 	if has_node("/root/WorldCalendar"):
 		day_seed = get_node("/root/WorldCalendar").get_day_seed()
+	var local_count = _get_local_gallery_count(category)
+	if local_count > 0:
+		return _load_local_gallery_texture(category, (abs(day_seed) % local_count) + 1)
 	var cache_key = category + "/daily_" + str(day_seed)
 	if _memory_cache.has(cache_key) and _memory_cache[cache_key] != null:
 		return _memory_cache[cache_key]
@@ -196,7 +247,43 @@ func get_daily_image(category: String) -> Texture2D:
 	return null
 
 func get_image_by_index(category: String, _index: int) -> Texture2D:
+	var local_count = _get_local_gallery_count(category)
+	if local_count > 0:
+		return _load_local_gallery_texture(category, (abs(_index) % local_count) + 1)
 	return get_random_image(category)
+
+func _get_local_gallery_count(category: String) -> int:
+	if not _local_gallery_categories.has(category):
+		return 0
+	var base_path = _categories_base.get(category, "")
+	if base_path == "":
+		return 0
+	var count = 0
+	for i in range(1, 16):
+		var found = false
+		for ext in ["png", "webp", "jpg"]:
+			if ResourceLoader.exists(base_path + category + "_%03d.%s" % [i, ext]):
+				found = true
+				break
+		if found:
+			count += 1
+		elif i > 1:
+			break
+	return count
+
+func _load_local_gallery_texture(category: String, index: int) -> Texture2D:
+	var cache_key = category + "/local_%03d" % index
+	if _memory_cache.has(cache_key) and _memory_cache[cache_key] != null:
+		return _memory_cache[cache_key]
+	var base_path = _categories_base.get(category, "")
+	for ext in ["png", "webp", "jpg"]:
+		var path = base_path + category + "_%03d.%s" % [index, ext]
+		if ResourceLoader.exists(path):
+			var tex = ResourceLoader.load(path, "", ResourceLoader.CACHE_MODE_REUSE)
+			if tex is Texture2D:
+				_cache_put(tex, cache_key)
+				return tex
+	return null
 
 func get_category_for_phase() -> String:
 	if has_node("/root/DayNightManager"):
@@ -411,6 +498,24 @@ func _build_prompt(category: String) -> String:
 			return "futuristic weather radar %s holographic map storm patterns blue cyan glow sci-fi meteorological display detailed digital art" % scene
 		"talisman":
 			return "holographic talisman %s glowing cyan ancient symbols circuit pattern data stream cyberpunk charm detailed digital art" % scene
+		"terminal_news":
+			return "N.H.207 cyberpunk town computer forum city news terminal screen %s HUD panels CRT scanlines no readable text no logo game media" % scene
+		"terminal_anomaly":
+			return "N.H.207 anomaly report computer terminal corrupted waveform city map purple signal %s no readable text no logo game media" % scene
+		"terminal_life":
+			return "N.H.207 cozy cyberpunk community forum marketplace delivery services terminal UI %s no readable text no logo game media" % scene
+		"terminal_datawhale":
+			return "N.H.207 corporate AI lab internal announcement terminal neural network dashboard %s no readable text no logo game media" % scene
+		"tv_weather":
+			return "N.H.207 television weather channel broadcast radar city map storm forecast %s no readable text no logo game media" % scene
+		"tv_city":
+			return "N.H.207 television urban news broadcast futuristic town aerial civic report %s no readable text no logo game media" % scene
+		"tv_life":
+			return "N.H.207 television life channel cozy neon storefront delivery service broadcast %s no readable text no logo game media" % scene
+		"tv_traffic":
+			return "N.H.207 television traffic channel elevated train route map CCTV panels %s no readable text no logo game media" % scene
+		"tv_anomaly":
+			return "N.H.207 corrupted anomaly television broadcast reality stability warning purple rift %s no readable text no logo game media" % scene
 		_:
 			return "cyberpunk %s futuristic digital art detailed painting" % scene
 
@@ -474,6 +579,18 @@ func _get_word_pool(category: String) -> Array[String]:
 			return pool
 		"talisman":
 			return _scene_words_talisman
+		"terminal_news", "tv_city":
+			return ["city bulletin dashboard", "public terminal map", "civic news cards", "neighborhood status board"]
+		"terminal_anomaly", "tv_anomaly":
+			return ["reality stability monitor", "corrupted city map", "unknown signal waveform", "purple anomaly archive"]
+		"terminal_life", "tv_life":
+			return ["community marketplace cards", "rain delivery dashboard", "cozy storefront panels", "apartment notice board"]
+		"terminal_datawhale":
+			return ["AI lab operations board", "server status dashboard", "data safety announcement", "neural network diagnostics"]
+		"tv_weather":
+			return ["weather radar storm pattern", "purple rain probability", "forecast map display", "meteorological center screen"]
+		"tv_traffic":
+			return ["elevated train route map", "rain night transit disruption", "traffic camera grid", "drone delivery reroute"]
 		_:
 			return []
 
@@ -490,6 +607,12 @@ func request_class_portrait(class_id: int) -> void:
 		class_portrait_ready.emit(class_id, _memory_cache[cache_key])
 		return
 
+	var local_texture = _load_local_class_portrait(class_id)
+	if local_texture != null:
+		_cache_put(local_texture, cache_key)
+		class_portrait_ready.emit(class_id, local_texture)
+		return
+
 	var size = _size_map.get("class_portrait", Vector2i(512, 512))
 	var seed_val = class_id * 1000 + (Time.get_ticks_msec() % 1000)
 	var encoded = prompt.uri_encode()
@@ -501,6 +624,22 @@ func request_class_portrait(class_id: int) -> void:
 	add_child(http_portrait)
 	_dynamic_http_requests.append(http_portrait)
 	http_portrait.request(url)
+
+func _load_local_class_portrait(class_id: int) -> Texture2D:
+	var class_keys = ["cipher", "chrome", "echo", "shadow"]
+	var base_path = _categories_base.get("class_portrait", "res://assets/media/class_portrait/")
+	var candidates = []
+	candidates.append(base_path + "class_portrait_%03d.webp" % (class_id + 1))
+	candidates.append(base_path + "class_portrait_%03d.png" % (class_id + 1))
+	if class_id >= 0 and class_id < class_keys.size():
+		candidates.append(base_path + class_keys[class_id] + ".webp")
+		candidates.append(base_path + class_keys[class_id] + ".png")
+	for path in candidates:
+		if ResourceLoader.exists(path):
+			var tex = ResourceLoader.load(path, "", ResourceLoader.CACHE_MODE_REUSE)
+			if tex is Texture2D:
+				return tex
+	return null
 
 func _on_portrait_response(result, response_code, _headers, body, class_id: int, cache_key: String, http_node: HTTPRequest):
 	if result == OK and response_code == 200 and body.size() > 0 and _is_valid_image_data(body):

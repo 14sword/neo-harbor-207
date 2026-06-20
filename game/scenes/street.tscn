@@ -8,6 +8,8 @@
 [ext_resource type="PackedScene" path="res://scenes/quest_panel.tscn" id="6_quest"]
 [ext_resource type="PackedScene" uid="uid://npc123" path="res://scenes/npc.tscn" id="7_npc"]
 [ext_resource type="PackedScene" path="res://scenes/character_panel.tscn" id="8_char_panel"]
+[ext_resource type="PackedScene" path="res://scenes/map_panel.tscn" id="9_map_panel"]
+[ext_resource type="Texture2D" path="res://assets/ui/teleport/street_underground_entrance.png" id="10_underground_icon"]
 
 [sub_resource type="RectangleShape2D" id="WallTop_shape"]
 size = Vector2(1672, 10)
@@ -65,6 +67,9 @@ size = Vector2(82, 100)
 
 [sub_resource type="RectangleShape2D" id="ApartmentEntrance_shape"]
 size = Vector2(60, 80)
+
+[sub_resource type="CircleShape2D" id="UndergroundEntrance_shape"]
+radius = 56.0
 
 [node name="Street" type="Node2D" unique_id=1620714523]
 script = ExtResource("1")
@@ -215,18 +220,32 @@ position = Vector2(836, 700)
 position = Vector2(1400, 514)
 npc_name = "chen_xi"
 npc_title = "咖啡店老板"
+wander_range = 100.0
+patrol_points = Array[Vector2]([Vector2(1400, 514), Vector2(1490, 530), Vector2(1460, 630), Vector2(1360, 610)])
 
 [node name="NPC_ZhaoLin" parent="NPCs" unique_id=290119973 instance=ExtResource("7_npc")]
 position = Vector2(50, 896)
 npc_name = "zhao_lin"
 npc_title = "黑市信息贩子"
+wander_range = 120.0
+patrol_points = Array[Vector2]([Vector2(90, 850), Vector2(190, 820), Vector2(220, 890), Vector2(80, 895)])
 
 [node name="NPC_LiuFeng" parent="NPCs" unique_id=510357049 instance=ExtResource("7_npc")]
 position = Vector2(600, 400)
 npc_name = "liu_feng"
 npc_title = "赛博义体技师"
+wander_range = 100.0
+patrol_points = Array[Vector2]([Vector2(600, 400), Vector2(710, 430), Vector2(680, 535), Vector2(560, 515)])
 
 [node name="CharacterPanel" parent="." unique_id=699049366 instance=ExtResource("8_char_panel")]
+
+[node name="MapPanel" parent="." instance=ExtResource("9_map_panel")]
+
+[node name="UndergroundEntranceVisual" type="Sprite2D" parent="."]
+position = Vector2(520, 760)
+scale = Vector2(0.42, 0.42)
+texture = ExtResource("10_underground_icon")
+z_index = 35
 
 [node name="ExitZone" type="Area2D" parent="." unique_id=1742333118]
 position = Vector2(836, 890)
@@ -248,3 +267,9 @@ position = Vector2(1100, 700)
 [node name="CollisionShape2D" type="CollisionShape2D" parent="ApartmentEntrance" unique_id=412313450]
 position = Vector2(532, -396)
 shape = SubResource("ApartmentEntrance_shape")
+
+[node name="UndergroundEntrance" type="Area2D" parent="."]
+position = Vector2(520, 760)
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="UndergroundEntrance"]
+shape = SubResource("UndergroundEntrance_shape")

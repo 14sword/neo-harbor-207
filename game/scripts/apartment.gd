@@ -27,6 +27,19 @@ var _event_timer: float = 0.0
 static var _water_particle_material: ParticleProcessMaterial = null
 static var _water_particle_texture: Texture2D = null
 
+const INTERACTION_PRIORITY = [
+	{"near": "_near_exit", "method": "_transition_to_street"},
+	{"near": "_near_computer", "method": "_interact_computer"},
+	{"near": "_near_bed", "method": "_interact_bed"},
+	{"near": "_near_balcony", "method": "_interact_balcony"},
+	{"near": "_near_tv", "method": "_interact_tv"},
+	{"near": "_near_talisman", "method": "_interact_talisman"},
+	{"near": "_near_plant", "method": "_interact_plant"},
+	{"near": "_near_clothesline", "method": "_interact_clothesline"},
+	{"near": "_near_railing", "method": "_interact_railing"},
+	{"near": "_near_fridge", "method": "_interact_fridge"},
+]
+
 var _day_events: Array[Dictionary] = [
 	{"text": "📱 收到快递通知：您的包裹已到达楼下智能柜。", "weight": 3},
 	{"text": "🌤️ 天气播报：今日多云，适合外出。", "weight": 2},
@@ -152,26 +165,14 @@ func _process(delta):
 	if _interaction_locked:
 		return
 
-	if _near_exit and Input.is_action_just_pressed("interact"):
-		_transition_to_street()
-	elif _near_computer and Input.is_action_just_pressed("interact"):
-		_interact_computer()
-	elif _near_bed and Input.is_action_just_pressed("interact"):
-		_interact_bed()
-	elif _near_balcony and Input.is_action_just_pressed("interact"):
-		_interact_balcony()
-	elif _near_tv and Input.is_action_just_pressed("interact"):
-		_interact_tv()
-	elif _near_talisman and Input.is_action_just_pressed("interact"):
-		_interact_talisman()
-	elif _near_plant and Input.is_action_just_pressed("interact"):
-		_interact_plant()
-	elif _near_clothesline and Input.is_action_just_pressed("interact"):
-		_interact_clothesline()
-	elif _near_railing and Input.is_action_just_pressed("interact"):
-		_interact_railing()
-	elif _near_fridge and Input.is_action_just_pressed("interact"):
-		_interact_fridge()
+	if Input.is_action_just_pressed("interact"):
+		_run_nearest_interaction()
+
+func _run_nearest_interaction() -> void:
+	for interaction in INTERACTION_PRIORITY:
+		if bool(get(str(interaction["near"]))):
+			call(str(interaction["method"]))
+			return
 
 func _transition_to_street():
 	if has_node("/root/SceneManager"):
@@ -611,4 +612,6 @@ func _apply_apartment_background():
 			bg_path = "res://assets/backgrounds/apartment/雨夜.png"
 	
 	if bg_path != "" and ResourceLoader.exists(bg_path):
-		background.texture = load(bg_path)
+		var texture = dnm.get_background_texture(bg_path) if dnm.has_method("get_background_texture") else null
+		if texture:
+			background.texture = texture

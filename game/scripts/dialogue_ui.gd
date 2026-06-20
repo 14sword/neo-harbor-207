@@ -18,6 +18,7 @@ extends CanvasLayer
 @onready var close_history_button: Button = $HistoryPanel/CloseHistoryButton
 
 var api_client: Node = null
+var dialogue_director: Node = null
 var current_npc_id: String = ""
 var current_npc_display_name: String = ""
 var current_affinity_level: int = 1
@@ -26,6 +27,13 @@ var dialogue_history: Array = []
 var all_histories: Dictionary = {}
 var is_waiting_for_input: bool = false
 var pending_npc_response: String = ""
+var is_free_chat_sending: bool = false
+var current_dialogue_mode: String = "story"
+var current_director_node: Dictionary = {}
+var mode_container: HBoxContainer = null
+var choice_scroll: ScrollContainer = null
+var choice_container: VBoxContainer = null
+var _mode_buttons: Dictionary = {}
 
 var name_map = {
 	"zhang_san": "张三",
@@ -50,9 +58,9 @@ var title_map = {
 }
 
 var avatar_map = {
-	"zhang_san": "res://assets/characters/avatars/张三头像.png",
-	"li_si": "res://assets/characters/avatars/李四头像.png",
-	"wang_wu": "res://assets/characters/avatars/王五头像.png",
+	"zhang_san": "res://assets/characters/npcs/generated_portraits/zhang_san.webp",
+	"li_si": "res://assets/characters/npcs/generated_portraits/li_si.webp",
+	"wang_wu": "res://assets/characters/npcs/generated_portraits/wang_wu.webp",
 	"chen_xi": "res://assets/characters/avatars/陈曦头像.png",
 	"zhao_lin": "res://assets/characters/avatars/赵霖头像.png",
 	"sun_yue": "res://assets/characters/avatars/孙悦头像.png",
@@ -105,6 +113,9 @@ func _ready():
 		api_client.affinity_received.connect(on_affinity_received)
 		api_client.history_received.connect(on_history_received)
 		api_client.affinity_level_up.connect(_on_affinity_level_up)
+
+	dialogue_director = get_node_or_null("/root/DialogueDirector")
+	_create_director_controls()
 	
 	_start_avatar_loading()
 	
@@ -162,6 +173,8 @@ func _apply_fonts():
 	tm.apply_font_to_button(history_button, 17)
 	tm.apply_font_to_button(close_button, 26)
 	tm.apply_font_to_label(hearts_label, 20)
+	for btn in _mode_buttons.values():
+		tm.apply_font_to_button(btn, 14)
 
 func _setup_button_hover_effects():
 	var buttons = [send_button, history_button, close_button, close_history_button]
@@ -171,6 +184,107 @@ func _setup_button_hover_effects():
 			btn.mouse_exited.connect(_on_button_hover_end.bind(btn))
 			btn.button_down.connect(_on_button_press.bind(btn))
 			btn.button_up.connect(_on_button_release.bind(btn))
+
+func _create_director_controls() -> void:
+	if mode_container != null:
+		return
+
+	mode_container = HBoxContainer.new()
+	mode_container.name = "ModeContainer"
+	mode_container.anchor_left = 0.0
+	mode_container.anchor_top = 0.0
+	mode_container.anchor_right = 1.0
+	mode_container.anchor_bottom = 0.0
+	mode_container.offset_left = 150.0
+	mode_container.offset_top = 76.0
+	mode_container.offset_right = -20.0
+	mode_container.offset_bottom = 110.0
+	mode_container.add_theme_constant_override("separation", 8)
+	panel.add_child(mode_container)
+
+	var modes = [
+		{"id": "story", "label": "剧情"},
+		{"id": "daily", "label": "日常"},
+		{"id": "affinity", "label": "好感"},
+		{"id": "free", "label": "自由聊"},
+	]
+	if dialogue_director and dialogue_director.has_method("get_available_modes"):
+		modes = dialogue_director.get_available_modes("")
+	for mode in modes:
+		var btn = Button.new()
+		btn.text = str(mode.get("label", mode.get("id", "")))
+		btn.custom_minimum_size = Vector2(88, 32)
+		btn.focus_mode = Control.FOCUS_NONE
+		btn.size_flags_horizontal = Control.SIZE_SHRINK_BEGIN
+		mode_container.add_child(btn)
+		_mode_buttons[str(mode.get("id", ""))] = btn
+		btn.pressed.connect(_on_mode_button_pressed.bind(str(mode.get("id", ""))))
+
+	choice_scroll = ScrollContainer.new()
+	choice_scroll.name = "ChoiceScroll"
+	choice_scroll.anchor_left = 0.0
+	choice_scroll.anchor_top = 1.0
+	choice_scroll.anchor_right = 1.0
+	choice_scroll.anchor_bottom = 1.0
+	choice_scroll.offset_left = 150.0
+	choice_scroll.offset_top = -122.0
+	choice_scroll.offset_right = -20.0
+	choice_scroll.offset_bottom = -62.0
+	choice_scroll.visible = false
+	panel.add_child(choice_scroll)
+
+	choice_container = VBoxContainer.new()
+	choice_container.name = "ChoiceContainer"
+	choice_container.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	choice_container.add_theme_constant_override("separation", 6)
+	choice_scroll.add_child(choice_container)
+
+	if dialogue_text:
+		dialogue_text.offset_top = 116.0
+		dialogue_text.offset_bottom = -132.0
+
+	_refresh_mode_buttons()
+
+func _refresh_mode_buttons() -> void:
+	for mode in _mode_buttons:
+		var btn: Button = _mode_buttons[mode]
+		var active = mode == current_dialogue_mode
+		btn.disabled = false
+		btn.add_theme_stylebox_override("normal", _make_mode_button_style(active, false))
+		btn.add_theme_stylebox_override("hover", _make_mode_button_style(active, true))
+		btn.add_theme_color_override("font_color", Color(1, 1, 1, 1) if active else Color(0.78, 0.86, 0.94, 1))
+
+func _make_mode_button_style(active: bool, hover: bool) -> StyleBoxFlat:
+	var style := StyleBoxFlat.new()
+	var base := Color(0.12, 0.18, 0.28, 0.9)
+	var border := Color(0.0, 0.94, 1.0, 0.45)
+	if active:
+		base = Color(0.0, 0.42, 0.56, 0.95)
+		border = Color(0.0, 0.94, 1.0, 0.95)
+	elif hover:
+		base = Color(0.16, 0.25, 0.36, 0.95)
+		border = Color(0.0, 0.94, 1.0, 0.72)
+	style.bg_color = base
+	style.border_color = border
+	style.set_border_width_all(1)
+	style.set_corner_radius_all(8)
+	style.content_margin_left = 12
+	style.content_margin_right = 12
+	style.content_margin_top = 5
+	style.content_margin_bottom = 5
+	return style
+
+func _make_choice_button_style(hover: bool = false) -> StyleBoxFlat:
+	var style := StyleBoxFlat.new()
+	style.bg_color = Color(0.09, 0.12, 0.18, 0.92) if not hover else Color(0.12, 0.2, 0.28, 0.96)
+	style.border_color = Color(0.0, 0.94, 1.0, 0.36) if not hover else Color(0.0, 0.94, 1.0, 0.72)
+	style.set_border_width_all(1)
+	style.set_corner_radius_all(8)
+	style.content_margin_left = 10
+	style.content_margin_right = 10
+	style.content_margin_top = 6
+	style.content_margin_bottom = 6
+	return style
 
 func _on_button_hover(btn: Button):
 	var tween = create_tween()
@@ -325,6 +439,151 @@ func _on_affinity_level_up(npc_id: String, new_level: int):
 		tween.tween_property(hearts_label, "scale", Vector2(1.0, 1.0), 0.5).set_ease(Tween.EASE_OUT).set_trans(Tween.TRANS_ELASTIC)
 		tween.parallel().tween_property(hearts_label, "modulate", Color(1, 1, 1, 1), 0.5)
 
+func _on_mode_button_pressed(mode: String) -> void:
+	if current_npc_id.is_empty():
+		return
+	current_dialogue_mode = mode
+	_refresh_mode_buttons()
+	_update_input_mode()
+	if mode == "free":
+		_clear_choices()
+		input_field.grab_focus()
+		return
+	_show_director_entry(mode)
+
+func _show_director_entry(mode: String) -> void:
+	if not dialogue_director or not dialogue_director.has_method("get_entry_node"):
+		return
+	var node: Dictionary = dialogue_director.get_entry_node(current_npc_id, mode)
+	_show_director_node(node, true)
+
+func _show_director_node(node: Dictionary, show_text: bool) -> void:
+	current_director_node = node
+	if node.is_empty():
+		_clear_choices()
+		return
+	if dialogue_director and dialogue_director.has_method("mark_node_seen"):
+		dialogue_director.mark_node_seen(current_npc_id, str(node.get("id", "")))
+	var node_text := str(node.get("text", ""))
+	if show_text and not node_text.is_empty() and not _history_ends_with("npc", node_text):
+		_append_npc_line(node_text, true)
+	_render_choices(node.get("choices", []))
+
+func _render_choices(choices: Array) -> void:
+	_clear_choices()
+	if current_dialogue_mode == "free" or not choice_container:
+		return
+	if choice_scroll:
+		choice_scroll.visible = true
+
+	if choices.is_empty():
+		var back_btn := _make_choice_button("返回话题")
+		back_btn.pressed.connect(_show_director_entry.bind(current_dialogue_mode))
+		choice_container.add_child(back_btn)
+		return
+
+	for choice in choices:
+		if not (choice is Dictionary):
+			continue
+		var choice_id := str(choice.get("id", ""))
+		var text := str(choice.get("text", "继续"))
+		var btn := _make_choice_button(text)
+		btn.pressed.connect(_on_choice_pressed.bind(choice_id))
+		choice_container.add_child(btn)
+
+func _make_choice_button(text: String) -> Button:
+	var btn := Button.new()
+	btn.text = text
+	btn.custom_minimum_size = Vector2(0, 34)
+	btn.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	btn.focus_mode = Control.FOCUS_NONE
+	btn.add_theme_stylebox_override("normal", _make_choice_button_style(false))
+	btn.add_theme_stylebox_override("hover", _make_choice_button_style(true))
+	btn.add_theme_color_override("font_color", Color(0.92, 0.96, 1.0, 1.0))
+	if has_node("/root/UIThemeManager"):
+		get_node("/root/UIThemeManager").apply_font_to_button(btn, 15)
+	return btn
+
+func _clear_choices() -> void:
+	if choice_container:
+		for child in choice_container.get_children():
+			child.queue_free()
+	if choice_scroll:
+		choice_scroll.visible = false
+
+func _on_choice_pressed(choice_id: String) -> void:
+	if current_director_node.is_empty() or not dialogue_director:
+		return
+	AudioManager.play_ui_click()
+	var node_id := str(current_director_node.get("id", ""))
+	var result: Dictionary = dialogue_director.select_choice(current_npc_id, node_id, choice_id)
+	if result.is_empty():
+		return
+
+	var player_text := str(result.get("player_text", ""))
+	if not player_text.is_empty():
+		_append_player_line(player_text)
+	if has_node("/root/QuestManager"):
+		get_node("/root/QuestManager").on_dialogue_with_npc(current_npc_id)
+
+	var npc_text := str(result.get("npc_text", ""))
+	var rewards: Array = result.get("rewards", [])
+	if not rewards.is_empty():
+		npc_text += "\n[color=#8FFFEA]获得：" + "，".join(rewards) + "[/color]"
+	if not npc_text.is_empty():
+		_append_npc_line(npc_text, true)
+
+	var next_node: Dictionary = result.get("next_node", {})
+	if not next_node.is_empty():
+		_show_director_node(next_node, true)
+	elif bool(result.get("close", false)):
+		hide_dialogue()
+	elif current_dialogue_mode == "story" or current_dialogue_mode == "affinity":
+		_show_director_entry(current_dialogue_mode)
+	else:
+		_render_choices(current_director_node.get("choices", []))
+
+func _append_player_line(message: String) -> void:
+	add_dialogue_line("[color=#4ECDC4]玩家:[/color] " + message)
+	dialogue_history.append({"role": "player", "content": message})
+	LogPanel.add_dialogue_log("玩家", message, "player")
+
+func _append_npc_line(response: String, typewriter: bool = true) -> void:
+	var npc_color = npc_color_map.get(current_npc_id, "#FFE66D")
+	var line = "[color=" + npc_color + "]" + current_npc_display_name + ":[/color] " + response
+	if typewriter:
+		add_dialogue_line_typewriter(line, 0.04)
+	else:
+		add_dialogue_line(line)
+	dialogue_history.append({"role": "npc", "content": response})
+	LogPanel.add_dialogue_log(current_npc_display_name, _strip_bbcode(response), current_npc_id)
+
+func _history_ends_with(role: String, content: String) -> bool:
+	if dialogue_history.is_empty():
+		return false
+	var last_entry = dialogue_history[dialogue_history.size() - 1]
+	if not (last_entry is Dictionary):
+		return false
+	var last_role := str(last_entry.get("role", ""))
+	var normalized_role := "player" if last_role == "user" else ("npc" if last_role == "assistant" else last_role)
+	return normalized_role == role and str(last_entry.get("content", "")) == content
+
+func _update_input_mode() -> void:
+	var is_free := current_dialogue_mode == "free"
+	if input_field:
+		input_field.visible = true
+		input_field.editable = not is_free_chat_sending
+		input_field.placeholder_text = "自由输入你想说的话..."
+	if send_button:
+		send_button.visible = true
+		send_button.disabled = is_free_chat_sending
+		if not is_free_chat_sending:
+			send_button.text = "发送"
+	if history_button:
+		history_button.visible = true
+	if choice_scroll:
+		choice_scroll.visible = not is_free and not current_director_node.is_empty()
+
 func start_dialogue(npc_id: String):
 	print("[DialogueUI] 开始对话: " + npc_id)
 	
@@ -361,12 +620,16 @@ func start_dialogue(npc_id: String):
 	
 	dialogue_text.text = ""
 	for entry in dialogue_history:
-		if entry["role"] == "player":
+		if entry["role"] == "player" or entry["role"] == "user":
 			dialogue_text.text += "[color=#4ECDC4]玩家:[/color] " + entry["content"] + "\n"
-		elif entry["role"] == "npc":
+		elif entry["role"] == "npc" or entry["role"] == "assistant":
 			dialogue_text.text += "[color=" + npc_color + "]" + current_npc_display_name + ":[/color] " + entry["content"] + "\n"
 	
-	add_dialogue_line_typewriter("[color=#FFFFFF]与 " + current_npc_display_name + " 的对话继续...[/color]", 0.02)
+	current_dialogue_mode = "story" if dialogue_director else "free"
+	current_director_node = {}
+	_clear_choices()
+	_refresh_mode_buttons()
+	_update_input_mode()
 	
 	visible = true
 	panel.visible = true
@@ -375,7 +638,7 @@ func start_dialogue(npc_id: String):
 	var slide_tween = create_tween()
 	slide_tween.set_ease(Tween.EASE_OUT)
 	slide_tween.set_trans(Tween.TRANS_CUBIC)
-	slide_tween.tween_property(panel, "anchor_top", 0.65, 0.3)
+	slide_tween.tween_property(panel, "anchor_top", 0.5, 0.3)
 	slide_tween.parallel().tween_property(panel, "offset_top", 0.0, 0.3)
 	
 	var player = get_tree().get_first_node_in_group("player")
@@ -395,10 +658,17 @@ func start_dialogue(npc_id: String):
 	
 	await get_tree().process_frame
 	await get_tree().process_frame
-	input_field.text = ""
-	input_field.editable = true
-	input_field.grab_focus()
-	input_field.caret_column = 0
+	if dialogue_director:
+		_show_director_entry(current_dialogue_mode)
+	else:
+		add_dialogue_line_typewriter("[color=#FFFFFF]与 " + current_npc_display_name + " 的对话继续...[/color]", 0.02)
+	if current_dialogue_mode == "free":
+		input_field.text = ""
+		input_field.editable = true
+		input_field.grab_focus()
+		input_field.caret_column = 0
+	else:
+		input_field.text = ""
 	is_waiting_for_input = true
 	print("[DialogueUI] 对话框已显示")
 
@@ -419,6 +689,10 @@ func hide_dialogue():
 	current_npc_display_name = ""
 	is_waiting_for_input = false
 	pending_npc_response = ""
+	is_free_chat_sending = false
+	current_director_node = {}
+	current_dialogue_mode = "story"
+	_clear_choices()
 
 	if npc_display != "":
 		_log_event("👋 结束与" + npc_display + "对话")
@@ -467,19 +741,21 @@ func _on_text_submitted(_text: String):
 	send_message()
 
 func send_message():
+	if is_free_chat_sending:
+		return
 	AudioManager.play_send_message()
 	var message = input_field.text.strip_edges()
 	if message.is_empty() or current_npc_id.is_empty():
 		return
 
-	add_dialogue_line("[color=#4ECDC4]玩家:[/color] " + message)
-	dialogue_history.append({"role": "player", "content": message})
-	LogPanel.add_dialogue_log("玩家", message, "player")
+	_append_player_line(message)
 	print("[DialogueUI] dialogue_history append player, size: ", dialogue_history.size(), " content: ", message)
 	input_field.text = ""
 
+	is_free_chat_sending = true
 	send_button.disabled = true
 	send_button.text = "发送中..."
+	input_field.editable = false
 
 	print("[DialogueUI] 发送消息到后端: " + current_npc_id + " - " + message)
 
@@ -489,9 +765,12 @@ func send_message():
 		if has_node("/root/QuestManager"):
 			get_node("/root/QuestManager").on_dialogue_with_npc(current_npc_id)
 	else:
-		send_button.disabled = false
-		send_button.text = "发送"
-		add_dialogue_line("[color=#FF6B6B]警告:[/color] 无法连接到后端服务")
+		is_free_chat_sending = false
+		_update_input_mode()
+		var fallback = "远端暂时没有回应，但本地对话仍然可用。"
+		if dialogue_director and dialogue_director.has_method("get_free_chat_fallback"):
+			fallback = dialogue_director.get_free_chat_fallback(current_npc_id, message)
+		_append_npc_line(fallback, true)
 
 func on_chat_response_received(npc_id: String, response: String, affinity_level: int = 1, affinity_score: int = 0):
 	AudioManager.play_receive_message()
@@ -508,9 +787,8 @@ func on_chat_response_received(npc_id: String, response: String, affinity_level:
 		
 		pending_npc_response = ""
 		is_waiting_for_input = false
-		send_button.text = "发送"
-		send_button.disabled = false
-		input_field.editable = true
+		is_free_chat_sending = false
+		_update_input_mode()
 		input_field.grab_focus()
 
 func add_dialogue_line(line: String):
@@ -570,7 +848,7 @@ func show_history_panel():
 	history_text.text = ""
 	var history_content = ""
 	for entry in dialogue_history:
-		if entry["role"] == "player":
+		if entry["role"] == "player" or entry["role"] == "user":
 			history_content += "[color=#4ECDC4]玩家:[/color] " + entry["content"] + "\n\n"
 		else:
 			history_content += "[color=#FFE66D]" + current_npc_display_name + ":[/color] " + entry["content"] + "\n\n"

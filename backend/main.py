@@ -34,6 +34,21 @@ _batch_cache: dict = {}
 def root():
     return {"message": "Welcome to Cyber Town!", "status": "running"}
 
+@app.get("/health")
+def health():
+    return {
+        "status": "ok",
+        "service": "cyber-town-backend",
+        "batch_dialogue_refresh_enabled": settings.enable_batch_dialogue_refresh,
+        "database_path": db_manager.db_path,
+        "llm_configured": {
+            "groq": bool(settings.groq_api_key),
+            "mimo": bool(settings.mimo_api_key),
+            "deepseek": bool(settings.deepseek_api_key),
+        },
+        "npc_count": len(NPC_CONFIGS),
+    }
+
 @app.get("/npcs/status", response_model=NPCStatusResponse)
 def get_npcs_status():
     states = state_manager.get_all_states()
@@ -239,7 +254,12 @@ def npc_relationship_map(player_name: str = ""):
 
 @app.on_event("startup")
 async def startup_event():
+    if not settings.enable_batch_dialogue_refresh:
+        logger.info("Background dialogue refresh disabled")
+        return
+
     import asyncio
+    refresh_seconds = max(1, settings.batch_dialogue_refresh_seconds)
 
     async def refresh_batch_dialogues():
         global _batch_cache
@@ -249,7 +269,7 @@ async def startup_event():
                 logger.info(f"Background dialogues updated for {len(_batch_cache)} NPCs")
             except Exception as e:
                 logger.error(f"Background dialogue update failed: {e}")
-            await asyncio.sleep(300)
+            await asyncio.sleep(refresh_seconds)
 
     asyncio.create_task(refresh_batch_dialogues())
 

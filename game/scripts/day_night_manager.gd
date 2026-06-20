@@ -44,12 +44,15 @@ var _screen_lights: Array = []
 var _moonlight: PointLight2D
 var _time: float = 0.0
 var _cached_light_texture: Texture2D = null
+var _background_texture_cache: Dictionary = {}
+var _background_preload_pending: Dictionary = {}
 var _last_phase: int = -1
 
 var _screen_flicker_timer: float = 0.0
 
 func _ready():
 	_cached_light_texture = _create_light_texture()
+	_request_background_preloads()
 	_create_night_effects()
 	_initialized = true
 	_apply_background()
@@ -58,6 +61,7 @@ func _ready():
 
 func _process(delta: float):
 	_time += delta
+	_poll_background_preloads()
 
 	_game_hour += delta * GAME_MINUTES_PER_REAL_SECOND / 60.0
 	if _game_hour >= 24.0:
@@ -172,7 +176,7 @@ func _process_rain_night(_delta: float, phase_changed: bool):
 				sl.energy = 0.4 + randf() * 0.15
 
 func _create_night_effects():
-	if has_node("/root/SceneManager") and get_node("/root/SceneManager").is_apartment():
+	if has_node("/root/SceneManager") and (get_node("/root/SceneManager").is_apartment() or _is_special_scene()):
 		return
 	var root = get_tree().current_scene
 	if not root:
@@ -375,7 +379,7 @@ func _create_light_texture() -> Texture2D:
 	return ImageTexture.create_from_image(img)
 
 func _apply_night_effects():
-	if has_node("/root/SceneManager") and get_node("/root/SceneManager").is_apartment():
+	if has_node("/root/SceneManager") and (get_node("/root/SceneManager").is_apartment() or _is_special_scene()):
 		return
 	if not _overlay:
 		return
@@ -459,6 +463,8 @@ func toggle_day_night():
 func _apply_background():
 	if not _initialized:
 		return
+	if _is_special_scene():
+		return
 
 	var bg = get_tree().get_first_node_in_group("background")
 	if bg == null:
@@ -483,9 +489,93 @@ func _apply_background():
 	var bg_path = bg_map.get(current_phase, "")
 	print("[DayNight] Applying background: ", bg_path, " phase=", current_phase, " street=", is_street, " apt=", is_apartment)
 	if bg_path != "" and ResourceLoader.exists(bg_path):
-		bg.texture = load(bg_path)
+		var texture = get_background_texture(bg_path)
+		if texture:
+			bg.texture = texture
 	else:
 		print("[DayNight] Background path invalid or missing: ", bg_path)
+
+func get_background_texture(path: String) -> Texture2D:
+	if path == "":
+		return null
+	if _background_texture_cache.has(path):
+		return _background_texture_cache[path]
+	_poll_single_background(path)
+	if _background_texture_cache.has(path):
+		return _background_texture_cache[path]
+	_request_background_texture(path)
+	return null
+
+func _request_background_preloads() -> void:
+	for path in _get_all_background_paths():
+		_request_background_texture(path)
+
+func _get_all_background_paths() -> Array[String]:
+	var paths: Array[String] = []
+	var bg_maps = [office_backgrounds, street_backgrounds, apartment_backgrounds]
+	for bg_map in bg_maps:
+		for path in bg_map.values():
+			if path != "" and not paths.has(path):
+				paths.append(path)
+	return paths
+
+func _request_background_texture(path: String) -> void:
+	if path == "" or _background_texture_cache.has(path) or _background_preload_pending.has(path):
+		return
+	if not ResourceLoader.exists(path):
+		return
+	var err = ResourceLoader.load_threaded_request(path, "Texture2D", false, ResourceLoader.CACHE_MODE_REUSE)
+	if err == OK:
+		_background_preload_pending[path] = true
+
+func _poll_background_preloads() -> void:
+	if _background_preload_pending.is_empty():
+		return
+	var finished_paths: Array[String] = []
+	for path in _background_preload_pending.keys():
+		var was_loaded = _poll_single_background(path)
+		if was_loaded or not _background_preload_pending.has(path):
+			finished_paths.append(path)
+
+	for path in finished_paths:
+		if _current_background_path() == path:
+			_apply_background()
+
+func _poll_single_background(path: String) -> bool:
+	if not _background_preload_pending.has(path):
+		return false
+	var status = ResourceLoader.load_threaded_get_status(path)
+	match status:
+		ResourceLoader.THREAD_LOAD_LOADED:
+			var texture = ResourceLoader.load_threaded_get(path)
+			if texture is Texture2D:
+				_background_texture_cache[path] = texture
+			_background_preload_pending.erase(path)
+			return texture is Texture2D
+		ResourceLoader.THREAD_LOAD_FAILED, ResourceLoader.THREAD_LOAD_INVALID_RESOURCE:
+			_background_preload_pending.erase(path)
+	return false
+
+func _current_background_path() -> String:
+	var is_street = false
+	var is_apartment = false
+	if has_node("/root/SceneManager"):
+		is_street = get_node("/root/SceneManager").is_street()
+		is_apartment = get_node("/root/SceneManager").is_apartment()
+
+	var bg_map = office_backgrounds
+	if is_street:
+		bg_map = street_backgrounds
+	elif is_apartment:
+		bg_map = apartment_backgrounds
+	return bg_map.get(current_phase, "")
+
+func _is_special_scene() -> bool:
+	if not has_node("/root/SceneManager"):
+		return false
+
+	var scene_manager = get_node("/root/SceneManager")
+	return scene_manager.is_underground() or scene_manager.is_anomaly_space()
 
 func _apply_bgm():
 	if not _initialized:

@@ -11,7 +11,12 @@ var is_prompt_visible: bool = false
 var name_map = {
 	"zhang_san": "张三",
 	"li_si": "李四",
-	"wang_wu": "王五"
+	"wang_wu": "王五",
+	"chen_xi": "陈曦",
+	"zhao_lin": "赵霖",
+	"sun_yue": "孙悦",
+	"liu_feng": "刘风",
+	"he_zhen": "何真"
 }
 
 var exit_map = {
@@ -19,7 +24,13 @@ var exit_map = {
 	"enter_office": "进入 DATAWHALE",
 	"exit_street": "返回办公室",
 	"enter_apartment": "进入公寓",
+	"enter_underground": "进入地下站台",
+	"enter_anomaly_space": "进入异常空间",
 	"exit_apartment": "前往街区",
+	"return_to_street": "返回街区",
+	"return_to_underground": "返回地下站台",
+	"return_to_apartment": "返回公寓",
+	"enter_rift": "进入万界裂隙",
 	"use_computer": "使用电脑",
 	"use_bed": "睡觉",
 	"observe_city": "观察城市",

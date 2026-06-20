@@ -31,6 +31,12 @@ func save_game() -> bool:
 			current_scene_str = "office"
 		elif sm.is_apartment():
 			current_scene_str = "apartment"
+		elif sm.is_underground():
+			current_scene_str = "underground"
+		elif sm.is_anomaly_space():
+			current_scene_str = "anomaly_space"
+		elif sm.is_rift_run():
+			current_scene_str = "rift_run"
 
 	var save_data = {
 		"version": 3,
@@ -96,18 +102,8 @@ func load_game() -> bool:
 			dnm._apply_night_effects()
 			dnm.phase_changed.emit(dnm.current_phase)
 
-	if save_data.has("current_scene") and has_node("/root/SceneManager"):
-		var sm = get_node("/root/SceneManager")
-		var target_scene = save_data["current_scene"]
-		if target_scene == "street" and not sm.is_street():
-			sm.transition_to(sm.GameScene.STREET)
-			await get_tree().create_timer(1.0).timeout
-		elif target_scene == "office" and not sm.is_office():
-			sm.transition_to(sm.GameScene.OFFICE)
-			await get_tree().create_timer(1.0).timeout
-		elif target_scene == "apartment" and not sm.is_apartment():
-			sm.transition_to(sm.GameScene.APARTMENT)
-			await get_tree().create_timer(1.0).timeout
+	if save_data.has("current_scene"):
+		await _restore_saved_scene(str(save_data["current_scene"]))
 
 	var player = get_tree().get_first_node_in_group("player")
 	if player and save_data.has("player"):
@@ -124,12 +120,42 @@ func load_game() -> bool:
 	
 	if save_data.has("game_manager"):
 		_apply_game_manager_data(save_data["game_manager"])
+	_sync_current_area_discovery()
 	
 	print("[SaveManager] 存档已加载")
 	_log_event("📂 存档已加载")
 	_is_loading = false
 	load_completed.emit()
 	return true
+
+func _restore_saved_scene(target_scene: String) -> void:
+	if not has_node("/root/SceneManager"):
+		return
+	var sm = get_node("/root/SceneManager")
+	var scene_info = _get_scene_restore_info(sm, target_scene)
+	if scene_info.is_empty():
+		return
+	var is_current: Callable = scene_info["is_current"]
+	if is_current.call():
+		return
+	sm.transition_to(scene_info["scene"])
+	await get_tree().create_timer(1.0).timeout
+
+func _get_scene_restore_info(sm: Node, target_scene: String) -> Dictionary:
+	match target_scene:
+		"street":
+			return {"scene": sm.GameScene.STREET, "is_current": Callable(sm, "is_street")}
+		"office":
+			return {"scene": sm.GameScene.OFFICE, "is_current": Callable(sm, "is_office")}
+		"apartment":
+			return {"scene": sm.GameScene.APARTMENT, "is_current": Callable(sm, "is_apartment")}
+		"underground":
+			return {"scene": sm.GameScene.UNDERGROUND, "is_current": Callable(sm, "is_underground")}
+		"anomaly_space":
+			return {"scene": sm.GameScene.ANOMALY_SPACE, "is_current": Callable(sm, "is_anomaly_space")}
+		"rift_run":
+			return {"scene": sm.GameScene.ANOMALY_SPACE, "is_current": Callable(sm, "is_anomaly_space")}
+	return {}
 
 func delete_save() -> bool:
 	if FileAccess.file_exists(SAVE_FILE):
@@ -185,6 +211,12 @@ func _get_game_manager_data() -> Dictionary:
 		data["character_class"] = get_node("/root/CharacterClassManager").get_save_data()
 	if has_node("/root/StoryManager"):
 		data["story"] = get_node("/root/StoryManager").get_save_data()
+	if has_node("/root/RiftRunManager"):
+		data["rift_run"] = get_node("/root/RiftRunManager").get_save_data()
+	if has_node("/root/APIClient"):
+		data["api_client"] = get_node("/root/APIClient").get_save_data()
+	if has_node("/root/DialogueDirector"):
+		data["dialogue_director"] = get_node("/root/DialogueDirector").get_save_data()
 	return data
 
 func _apply_game_manager_data(data: Dictionary) -> void:
@@ -194,6 +226,20 @@ func _apply_game_manager_data(data: Dictionary) -> void:
 		get_node("/root/CharacterClassManager").load_save_data(data["character_class"])
 	if data.has("story") and has_node("/root/StoryManager"):
 		get_node("/root/StoryManager").load_save_data(data["story"])
+	if data.has("rift_run") and has_node("/root/RiftRunManager"):
+		get_node("/root/RiftRunManager").load_save_data(data["rift_run"])
+	if data.has("api_client") and has_node("/root/APIClient"):
+		get_node("/root/APIClient").load_save_data(data["api_client"])
+	if data.has("dialogue_director") and has_node("/root/DialogueDirector"):
+		get_node("/root/DialogueDirector").load_save_data(data["dialogue_director"])
+
+func _sync_current_area_discovery() -> void:
+	var sm = get_node_or_null("/root/SceneManager")
+	var gm = get_node_or_null("/root/GameManager")
+	if sm and gm and sm.has_method("get_current_area_id") and gm.has_method("discover_area"):
+		var area_id := str(sm.get_current_area_id())
+		if not area_id.is_empty():
+			gm.discover_area(area_id)
 
 func _log_event(message: String) -> void:
 	if has_node("/root/LogPanel"):

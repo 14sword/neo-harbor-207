@@ -26,6 +26,7 @@ var _is_typing: bool = false
 var _typewriter_pending: bool = false
 var _cached_phase: String = "day"
 var _last_post_title: String = ""
+var _current_post_image_category: String = ""
 
 signal closed
 
@@ -378,17 +379,6 @@ func _show_post_list():
 	var phase = _forum_data.get_phase_key()
 	var posts = _forum_data.get_posts(_current_category, phase)
 
-	if _current_category == "生活杂谈" and has_node("/root/DailyWorldGenerator"):
-		var dwg = get_node("/root/DailyWorldGenerator")
-		var ads = dwg.get_daily_ads()
-		for ad in ads:
-			posts.append({
-				"title": "【广告】" + ad.get("title", ""),
-				"author": "推广信息",
-				"time": "12:00",
-				"content": ad.get("desc", ""),
-			})
-
 	if posts.is_empty():
 		var label = Label.new()
 		label.text = "暂无帖子"
@@ -426,9 +416,11 @@ func _show_post_list():
 
 	_post_detail.text = ""
 	_is_typing = false
+	_current_post_image_category = ""
 
 func _on_post_selected(post: Dictionary):
 	_last_post_title = post.get("title", "")
+	_current_post_image_category = post.get("image_category", "")
 	var header = "[color=#00EEFF]" + post.title + "[/color]\n"
 	header += "[color=#6B7094]" + post.author + " | " + post.time + "[/color]\n\n"
 	header += post.content
@@ -457,21 +449,17 @@ func _load_post_image():
 		_post_image.visible = false
 
 func _get_image_category_for_forum() -> String:
+	if not _current_post_image_category.is_empty():
+		return _current_post_image_category
 	match _current_category:
 		"都市新闻":
-			if has_node("/root/DayNightManager"):
-				var dnm = get_node("/root/DayNightManager")
-				if dnm.current_phase == dnm.DayPhase.RAIN_NIGHT:
-					return "city_rain"
-				if dnm.current_phase == dnm.DayPhase.NIGHT:
-					return "city_night"
-			return "city_day"
+			return "terminal_news"
 		"异常报告":
-			return "anomaly"
+			return "terminal_anomaly"
 		"生活杂谈":
-			return "ads"
+			return "terminal_life"
 		"DATAWHALE公告":
-			return "datawhale"
+			return "terminal_datawhale"
 		_:
 			return "forum"
 
@@ -575,7 +563,7 @@ func _on_close():
 func _on_media_image_ready(category: String, texture: Texture2D):
 	if not is_instance_valid(_post_image):
 		return
-	var valid_cats = ["forum", "city_day", "city_rain", "city_night", "anomaly", "ads", "datawhale"]
+	var valid_cats = ["forum", "city_day", "city_rain", "city_night", "anomaly", "ads", "datawhale", "terminal_news", "terminal_anomaly", "terminal_life", "terminal_datawhale"]
 	if category not in valid_cats:
 		return
 	if texture and _post_image.visible:
