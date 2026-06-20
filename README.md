@@ -225,16 +225,23 @@ neo-harbor-207/
 │   └── generate_characters.py         # AI 角色立绘生成
 └── game/
     ├── project.godot                   # Godot 项目文件
-    ├── scenes/                         # 21 个场景
+    ├── scenes/                         # 32 个场景
     │   ├── character_select.tscn       # 城市接入终端
     │   ├── apartment.tscn              # 公寓场景
     │   ├── main.tscn                   # 办公室场景
-    │   └── street.tscn                 # 街区场景
-    ├── scripts/                        # 44 个 GDScript
+    │   ├── street.tscn                 # 街区场景
+    │   ├── underground.tscn            # 地下站台场景
+    │   ├── anomaly_space.tscn          # 异常空间场景
+    │   ├── map_panel.tscn              # 全景地图面板
+    │   └── rift_run.tscn               # 裂隙打怪核心战斗场景
+    ├── scripts/                        # 60+ 个 GDScript
     │   ├── character_select.gd         # 12帧动画 + F5切换
     │   ├── character_class_manager.gd  # 4职业 + 42技能
     │   ├── story_manager.gd            # 5章主线剧情
     │   ├── npc.gd                      # NPC 状态机
+    │   ├── map_panel.gd                # 地图 UI 逻辑
+    │   ├── special_scene.gd            # 传送点交互
+    │   ├── rift/                       # 裂隙打怪战斗系统逻辑目录
     │   └── ...
     ├── shaders/                        # 4 个 GLSL 着色器
     ├── assets/
@@ -275,9 +282,9 @@ neo-harbor-207/
 - 性能优化（shader 运算 ↓80%，NPC 距离剔除）
 - Headless 零错误验证通过
 
-### Phase 2 — 待完成
-- ⬜ 世界地图系统
-- ⬜ 回合制战斗系统
+### Phase 2 — 已实现与待完成
+- [x] **世界地图与传送系统**：实现地下站台与异常空间双向传送、空气墙，并在全景地图 UI 完美呈现 NPC 所在地与连通关系。
+- [x] **裂隙打怪战斗系统**：完整的 2D 裂隙战斗玩法（刷怪管理、玩家招式/技能判定、血条子弹 HUD、子弹轨迹与结算奖励面板）。
 - ⬜ 商店系统（义体商店/黑市/咖啡店）
 - ⬜ 手机系统（消息/任务/地图/通讯）
 - ⬜ NPC 精灵图完善（陈曦/赵霖/孙悦/刘风/何真）
