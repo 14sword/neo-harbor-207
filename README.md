@@ -51,7 +51,7 @@
 - [x] **LLM 三级降级** — Groq（<500ms）→ MiMo-Flash → DeepSeek
 - [x] **RAG 语义记忆** — ChromaDB 向量检索 + SQLite 对话历史
 - [x] **AI 剧情引擎** — 章节生成 / NPC 背景故事 / 对话分支 / 每日事件
-- [x] **14 个后端 API** — FastAPI + 自动生成的 OpenAPI 文档
+- [x] **17 个后端 API** — FastAPI + 自动生成的 OpenAPI 文档
 
 ### 🎨 视觉与音频
 - [x] **4 个自定义着色器** — 城市网络背景 / CRT 扫描线 / 故障效果 / 扫描网格
@@ -74,8 +74,8 @@
 | 层 | 技术 | 说明 |
 |----|------|------|
 | **游戏引擎** | Godot 4.6 | GL Compatibility 渲染器（跨平台兼容） |
-| **前端语言** | GDScript | 60+ 个脚本文件，~10000 行代码 |
-| **后端框架** | Python FastAPI | 14 个 API 端点 |
+| **前端语言** | GDScript | 61 个脚本文件 (含测试共 84 个)，~12000 行代码 |
+| **后端框架** | Python FastAPI | 17 个 API 端点 |
 | **数据库** | SQLite + ChromaDB | 对话记忆 + 语义向量检索 |
 | **LLM 提供商** | Groq / MiMo / DeepSeek | 三级降级策略 |
 | **图像生成** | Pollinations.ai / Unsplash | AI 图像 + 真实摄影 |
@@ -181,16 +181,18 @@ uvicorn main:app --reload --port 8000
 │                     ↓                   │
 │                  rift_run (裂隙战斗)    │
 │                                          │
-│  ┌──── 19 个 Autoload 单例 ────┐        │
-│  │ APIClient  SceneManager     │        │
-│  │ DayNightMgr  AudioManager   │        │
-│  │ SaveManager  QuestManager   │        │
-│  │ GameManager  PetManager     │        │
-│  │ UIThemeMgr   WeatherEffects │        │
-│  │ CharClassMgr StoryManager   │        │
-│  │ WorldCalendar DailyWorldGen │        │
-│  │ MediaManager RiftRunManager │        │
-│  │ ...                         │        │
+│  ┌──── 22 个 Autoload 单例 ────┐        │
+│  │ Config      APIClient       │        │
+│  │ DialogueDir LogPanel        │        │
+│  │ AudioManager DayNightMgr    │        │
+│  │ FootstepGen  SaveManager    │        │
+│  │ QuestManager SceneManager   │        │
+│  │ Environment  GameManager    │        │
+│  │ PetManager   UIThemeMgr     │        │
+│  │ QuestHUD     WorldCalendar  │        │
+│  │ MediaManager DailyWorldGen  │        │
+│  │ WeatherEffs  CharClassMgr   │        │
+│  │ StoryManager RiftRunManager │        │
 │  └─────────────────────────────┘        │
 │                                          │
 │  4 个着色器: city_network / scan_line    │
@@ -201,7 +203,7 @@ uvicorn main:app --reload --port 8000
 ┌──────────────────────────────────────────┐
 │         Python FastAPI 后端               │
 │                                          │
-│  main.py (14 endpoints)                  │
+│  main.py (17 endpoints)                  │
 │    ├── agents.py → LLM 三级降级          │
 │    │   Groq → MiMo-Flash → DeepSeek     │
 │    ├── story_engine.py (AI 剧情引擎)     │
@@ -220,7 +222,7 @@ neo-harbor-207/
 ├── README.md                          # 本文件
 ├── PROJECT_DOC.md                      # 详细中文项目文档
 ├── backend/                           # Python FastAPI 后端
-│   ├── main.py                        # 14 API 端点
+│   ├── main.py                        # 17 API 端点
 │   ├── agents.py                      # NPC Agent + RAG 检索
 │   ├── config.py                      # LLM 配置 + 8 NPC 设定
 │   ├── hello_agents_llm.py            # LLM 三级降级封装
@@ -235,11 +237,16 @@ neo-harbor-207/
 │   ├── requirements.txt
 │   ├── .env.example
 │   └── data/
-├── tools/
-│   └── generate_characters.py         # AI 角色立绘生成
+├── tools/                             # 资源生成与质量检查脚本工具集
+│   ├── generate_characters.py         # AI 角色立绘生成与裁剪
+│   ├── generate_walking.py            # 8方向行走动画生成
+│   ├── generate_smooth_anim.py        # 12帧待机平滑动画生成
+│   ├── generate_anime_style.py        # 二次元风格 AI 转换工具
+│   ├── asset_preview_pipeline.py      # 资产 HTML/图象预览网页生成管线
+│   └── check_completion.py            # 资产与代码完整度自检工具
 └── game/
     ├── project.godot                   # Godot 项目文件
-    ├── scenes/                         # 32 个场景
+    ├── scenes/                         # 30 个场景
     │   ├── character_select.tscn       # 城市接入终端
     │   ├── apartment.tscn              # 公寓场景
     │   ├── main.tscn                   # 办公室场景
@@ -253,24 +260,21 @@ neo-harbor-207/
     │   ├── rift_hud.tscn               # 战斗血条与子弹 UI
     │   ├── rift_tile_select.tscn       # 9镶片关卡选择 UI
     │   └── rift_result_panel.tscn      # 战斗结算面板
-    ├── scripts/                        # 60+ 个 GDScript
+    ├── scripts/                        # 61 个 GDScript (含测试共 84 个)
     │   ├── character_select.gd         # 12帧动画 + F5切换
-    │   ├── character_class_manager.gd  # 4职业 + 42技能
+    │   ├── character_class_manager.gd  # 4职业 + 33技能
     │   ├── story_manager.gd            # 5章主线剧情
     │   ├── npc.gd                      # NPC 状态机
     │   ├── map_panel.gd                # 地图 UI 逻辑
     │   ├── special_scene.gd            # 传送点交互
     │   ├── underground_ambient.gd      # 地下站台动态特效渲染
-    │   ├── rift/                       # 裂隙打怪战斗系统逻辑目录
-    │   │   ├── rift_run_manager.gd     # 战斗流程管理单例
-    │   │   ├── rift_player_combat.gd   # 玩家战斗控制与按键
-    │   │   ├── rift_enemy.gd           # 敌方 AI 状态与攻击模式
-    │   │   ├── rift_enemy_spawner.gd   # 怪物生成波次门控
-    │   │   ├── rift_environment_manager.gd # 天气与时段环境叠加
-    │   │   ├── rift_tile_select.gd     # 镶片关卡选择与属性
-    │   │   ├── rift_result_panel.gd    # 奖励掉落结算
+    │   ├── dialogue_director.gd        # 剧情与对话流控制核心 (Fallback 机制)
+    │   ├── rift/                       # 裂隙打怪战斗系统逻辑目录 (12个脚本)
+    │   │   ├── rift_run.gd             # 战斗主循环控制
+    │   │   ├── rift_player_combat.gd   # 玩家战斗动作与控制
     │   │   └── ...
-    │   └── ...
+    │   ├── PET/                        # 宠物行为与跟随控制 (5个脚本)
+    │   └── ... (其余44个脚本)
     ├── shaders/                        # 4 个 GLSL 着色器
     ├── assets/
     │   ├── characters/                 # 角色精灵 + 头像 + 动画帧
@@ -278,8 +282,8 @@ neo-harbor-207/
     │   ├── audio/bgm/                  # 12 首赛博 BGM
     │   ├── fonts/                      # LXGW WenKai 字体
     │   └── media/                      # 10 个分类的媒体图片
-    └── tests/
-        └── verify_assets.gd            # Headless 资产验证
+    └── tests/                          # 23 个测试脚本 (Headless 验证)
+        └── verify_assets.gd            # Headless 资产与依赖项自检
 ```
 
 ---

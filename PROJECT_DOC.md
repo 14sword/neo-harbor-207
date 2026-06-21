@@ -22,7 +22,7 @@
 
 | 按键 | 功能 |
 |------|------|
-| WASD / 方向键 | 移动主角 / 裂隙战斗中控制角色移动 |
+| WASD / 方向键 | 移动主角 |
 | E 键 | 与 NPC 对话 / 触发场景交互 |
 | C 键 | 打开/关闭**角色面板** |
 | T 键 | 手动切换白天/黑夜 |
@@ -33,11 +33,6 @@
 | F5 | **切换视觉风格**（写实赛博 ↔ 二次元动漫） |
 | ← → | 角色选择界面切换职业 |
 | Enter | 角色选择界面确认接入 |
-| M 键 | 打开/关闭**全景地图面板** |
-| J 键 / 鼠标左键 | 裂隙战斗 - 普通攻击（三段连击链） |
-| K 键 / 鼠标右键 | 裂隙战斗 - 释放职业专属技能（消耗体力/冷却） |
-| Space 键 | 裂隙战斗 - 战术闪避（提供短暂无敌帧与位移） |
-| R 键 | 裂隙战斗 - 使用药剂（生命药水 / 能量药剂） |
 
 ### 2.2 NEO HARBOR 城市接入终端（MAJOR REFACTOR）
 
@@ -76,9 +71,7 @@
 - **公寓** (apartment.tscn): 9个交互区域（床/电脑/电视/阳台/冰箱/符纸/窗户/宠物碗/门），支持睡觉推进时间、论坛浏览、电视观看、阳台观察等
 - **办公室** (main.tscn): 含8个NPC（原3+新5）、5张办公桌、会议桌、盆栽、冰箱等家具碰撞体
 - **街区** (street.tscn): 含8个NPC（3办公室+5街区）、建筑碰撞体和气泡消息点
-- **地下站台** (underground.tscn): 异常现象研究哨站。包含动态全息公告牌、移动光束扫描、环境蒸汽/滴水特效，常驻 NPC 孙悦在此进行裂痕观测
-- **异常空间** (anomaly_space.tscn): 异常值爆表区域。常驻 NPC 何真在此管理失控的 AI系统，包含通往万界镶层（Rift Run）的动态裂隙传送门（Rift Gate）
-- 场景切换带 0.4 秒淡入淡出与扫描光带的过渡动画，并针对不同场景应用特定的霓虹色调（办公室:青色 / 街区:粉红 / 地下站台:青绿 / 异常空间:粉紫 / 公寓:暖橙 / 裂隙:火红）
+- 场景切换带 0.4 秒淡入淡出过渡动画
 - 宠物跨场景持久跟随
 - 所有游戏场景内嵌角色面板（按C键打开）
 
@@ -155,53 +148,17 @@
 - StoryManager Autoload 管理章节进度、步骤追踪、剧情标志
 
 ### 2.13 世界地图与传送系统（NEW）
+- **地下站台与异常空间传送**：实现场景之间的双向物理传送，包含完整的空气墙碰撞体，阻挡玩家非法跨越。
+- **全景地图 UI 面板**（按C键/通过终端可打开）：显示当前小镇中所有 NPC 的实时位置，以及各区域（公寓、街区、办公室、地下站台、异常空间）之间的连通拓扑图，方便玩家快速掌握地理环境。
+- **动态状态同步**：从 APIClient 和 StateManager 中自动同步 NPC 当前位置状态，并在 UI 上实时刷新。
 
-- **全景地图 UI (map_panel.tscn / map_panel.gd)**：
-  - **地点映射数据**：包含 5 个场景的位置映射、常驻 NPC (如地下站台的孙悦、异常空间的何真) 及相互连接的直达传送路由。
-  - **动态地图连线 (`Line2D`)**：在玩家当前所在地点与鼠标悬停或选中的目标地点之间，渲染动态霓虹色连接虚线。
-  - **探索解锁逻辑**：与 `GameManager` 中的 `discovered_areas` 数组进行校验。尚未通过常规入口抵达的未发现地点，在全景地图 UI 上以锁头图标（`locked.png`）和脱色灰色文本标记，禁止点击直达。
-  - **响应式排版**：自适应不同宽高比例的分辨率。当视口宽度小于 760px 时，自动切换为上下布局（地图区在上，信息详情在下）；否则展示为经典的左右双栏布局（左侧为地图操作，右侧为详情说明面板）。
-  - **缓动反馈**：按钮具有 hover 放大 (1.12倍)、按下缩小 (0.92倍) 动画；选中地点时，通过 Tween 缓动创建缩放反馈环动画 (`FeedbackRing`) 与带职业色边框的提示横条 (`TravelBanner`)。
-- **传送门与大门交互 (special_scene.gd)**：
-  - **碰撞边界门控**：管理 `ReturnZone`（返回主街区）与 `AnomalyZone` / `RiftEntryZone`（传送至其他空间或战斗场景）的玩家交互。
-  - **按键指示器**：当玩家进入传送点检测范围时，触发交互气泡 `interaction_prompt.gd` 的 `show_prompt` 并通过 `interact` (E 键) 确认切换。
-  - **背景自适应**：场景加载时，从 `DayNightManager` 同步当前的时段相位（白天/黄昏/深夜/雨夜），并加载对应的背景图（如 `background_day_path` 等）。
-- **地下站台环境氛围系统 (underground_ambient.gd)**：
-  - **纯代码动态粒子渲染**：无需大量资源加载，通过 GDScript 加载精灵图，动态剪裁 `AtlasTexture` 并构建 2D 动效节点：
-    - `HoloNotice`：26 层高的 4 帧循环动态全息公告牌。
-    - `MaintenanceMonitor`：24 层高的 4 帧循环维护监控器。
-    - `PortalPulse`：35 层高的 4 帧传送门光圈波动。
-    - `TrainLightSweep`：通过 Tween 驱动的列车灯光水平扫掠与淡出效果，循环运行。
-    - `SteamPuffA/B` 与 `DripReflectionA/B`：提供蒸汽喷射与水滴下落的背景粒子动效。
-  - **昼夜参数门控**：随昼夜时段自动调整各种动效物体的 Modulate 透明度与帧动画播放速率 (speed_scale) 以完美契合世界时段。
-
-### 2.14 2D 裂隙动作战斗系统（NEW）
-
-- **战斗流程管理器 (RiftRunManager)**：
-  - **关卡生成算法**：单次 Rift Run 包含 9 个镶片（漂移/异闻/压迫/回声商店/缝合锚点），难度逐层递进。第 3、6、9 关强制为首领战（如黄符尸王、镜界裁缝、万界缝合者）。
-  - **5 大异界领域 (Realms) 及其独立环境 Modifier**：
-    1. 西幻黏液沼 (`western_fantasy`)：史莱姆死亡在地面留下绿色酸性持续伤害区域。
-    2. 东方符墓 (`eastern_crypt`)：僵尸定身技能频率提升，但掉落稀有符纸材料。
-    3. 镜界花庭 (`mirror_realm`)：产生分裂镜像怪物，精英级掉落遗物的概率大幅提升。
-    4. 赛博废墟 (`cyber_ruin`)：子弹速度加快，职业模组的掉落概率提高。
-    5. 影砂荒原 (`ash_sand`)：游魂移动性增强，极易刷新出增加移速的装备。
-  - **环境叠加修正 (Environment Sequence)**：4 时段（黎明/黄昏/深夜/蚀时）和 5 天气类型（数据雨/裂雪/雷暴/雾潮/晴裂）所赋予的 Modifier 参数与领域 Modifier 产生乘算叠加。
-  - **奖励结算与装备系统**：
-    - 根据击杀数、受击伤害和最大连击数结算战斗等级（S/A/B/C/D）。
-    - 掉落物品包括裂隙碎片 (`rift_shard`)、天气专属材料（如 `frozen_talisman`）以及角色装备（分四种稀有度，带 Affixes 随机附加词条，且包含职业专属词条）。
-    - 提供装备穿戴（自动对接 `GameManager` 属性）与装备解体（获得 `rift_shard`）机制。
-    - 自动收集 6 种悬疑叙事档案，并在战斗后展示“未解现象说明”。
-- **战斗动作控制与 AI 行为 (rift_player_combat.gd)**：
-  - **职业属性继承**：从 `CharacterClassManager` 自动提取玩家选定职业（CIPHER/CHROME/ECHO/SHADOW）的应用属性（HP/EP/INT/PER/AGI/CHA）、外观尺寸与主题色彩。
-  - **动作打击手感**：
-    - WASD 控制八方向移动，行走时根据当前方向（左下/左上等）动态翻转主角的 `Sprite2D`，实现顺滑的对角线移动视觉模拟。
-    - 普通攻击支持三段连击链（`_attack_chain_step`），且有每次攻击的物理检测。
-    - `Space` 键消耗体力触发闪避，附带 0.15 秒的无敌时间门控 (`_invuln_timer`)。
-    - `K` 键或右键消耗能量施放职业强力技能。
-  - **投射物与敌方 AI 逻辑**：
-    - `rift_projectile.gd` 控制子弹的移动方向、伤害归属、碰撞消除与粒子拖尾效果。
-    - 敌人（`rift_enemy.gd`）支持动作前摇警示（windup）、技能 CD 判定与减速/硬直状态机。
-    - 依据关卡所处天气产生特定的敌人偏置（如雷暴天气更易刷新出机巧傀儡与赛博残影）。
+### 2.14 裂隙打怪战斗系统（NEW）
+- **2D 动作生存玩法**：玩家进入“维度裂缝”副本，在 9 个不同的战斗节点（Tile）中进行选路挑战。
+- **节点词缀选择**（RiftTileSelect）：每个节点拥有不同的随机怪物加成或环境词缀，玩家需要权衡挑战难度与奖励。
+- **波次与刷怪管理**（EnemySpawner）：配置每波怪物的类型、数量和刷新速率，通过对象池自动回收并支持连击数（Combo）统计。
+- **招式与技能判定**：按 J 键（或鼠标左键）进行普通攻击，按 K 键（或鼠标右键）触发职业技能，按 Space 键触发翻滚/闪避（附带短暂无敌帧与体力消耗）。
+- **HUD 交互面板**：包含红条（血量）与绿条（体力）、击杀数、连击数、当前波次、攻击/技能 CD 冷却指示器以及紧急撤退按钮。
+- **战斗结算系统**（RiftResultPanel）：根据通关（Cleared）、战败（Defeated）或中途撤退（Evacuated）状态进行积分结算，提供经验值、信用点和异常感知奖励。
 
 ---
 
@@ -233,95 +190,143 @@ quest_panel★(对象池架构), log_panel, dialogue_ui, forum_ui, tv_overlay, b
 
 | 文件 | 用途 | 关键功能 |
 |------|------|----------|
-| `config.gd` | 全局配置 | API 地址、端点路径 |
-| `player.gd` | 玩家控制 | WASD 移动、方向帧动画、NPC 交互 |
-| `npc.gd` | NPC 控制 | 状态机、对话气泡、巡逻路径、8 NPC display_name 映射 |
-| `apartment.gd` | 公寓场景 | 9个交互区域、随机事件、昼夜内容 |
-| `main.gd` | 办公室场景 | NPC状态更新、出口检测、8 NPC |
-| `street.gd` | 街区场景 | 建筑气泡消息、雨夜特效、3 街区 NPC |
-| `character_select.gd` ★ | NEO HARBOR接入终端 | 12帧平滑待机动画系统、F5双风格切换、纹理缓存、ClassTrait重新搭建、4职业切换(AI立绘)、登录场景安全检测、城市网络背景、CRT扫描线（2帧更新1次）、异常信号系统（30-45秒）、城市信息流、键盘导航 |
-| `character_panel.gd` ★ | 角色面板 | C键切换、4标签页(属性/技能/背包/剧情)、背包卡片式UI(稀有度颜色+类型标签)、null安全 |
-| `character_class_manager.gd` ★ | 职业管理 | 4职业定义、33技能、存档、属性应用 |
-| `story_manager.gd` ★ | 剧情管理 | 5章主线、章节解锁/完成、步骤追踪 |
-| `special_scene.gd` ★ | 传送交互控制 | 进出传送区域的碰撞检测与 E 键动作气泡显示，同步场景背景及相机限界 |
-| `underground_ambient.gd` ★ | 地下站台渲染 | 纯代码生成全息 notice、维护监控器、移动扫掠列车灯光与蒸汽滴水等氛围粒子 |
-
-### 4.1.1 裂隙动作战斗脚本 (scripts/rift/) — 新增战斗系统脚本★
-
-| 文件 | 用途 | 关键功能 |
-|------|------|----------|
-| `rift_run_manager.gd` | 战斗总控 | 9镶片递进关关卡生成、5大异界领域与 Modifier 叠加、战绩等级结算与词 Affix 装备掉落管理 |
-| `rift_player_combat.gd` | 玩家战斗控制 | WASD移动与 8 方向行走渲染翻转、普通连击三段检测、专属技能冷却与 0.15 秒无敌帧战术闪避 |
-| `rift_enemy.gd` | 敌方战斗 AI | 警戒追踪、动作预摇（windup）、技能冷却门控、受击状态机与硬直判定 |
-| `rift_enemy_spawner.gd` | 怪物波次生成 | 对应领域及镶片难度，动态刷新及管理区域内的多波次怪物实体 |
-| `rift_environment_manager.gd` | 战斗天气叠加 | 根据镶片环境动态渲染时段与雷暴、雾气等实时天气叠加视觉效果 |
-| `rift_tile_select.gd` | 关卡选择 UI | 提供 9 个关卡漂移镶片的界面布局、解锁判定与连线线段渲染 |
-| `rift_result_panel.gd` | 战斗结算 UI | 渲染战斗结果等级评分 (S-D)、展示详细的掉落物品卡片及未解现象日志 |
-| `rift_projectile.gd` | 战斗投射物 | 控制子弹/投射物的飞行运动、碰撞包络、伤害传递与拖尾粒子消除 |
-| `rift_fx.gd` | 技能粒子效果 | 提供近战连招刀光、闪避幻影、药水爆发等战斗内动画粒子效果 |
-| `rift_hud.gd` | 战斗内 HUD | 实时渲染玩家生命、体力、护盾数值，管理专属技能 CD 冷却条及当前武器子弹、连击数 |
-| `rift_entry_visual.gd` | 传送门渲染 | 同步 RiftRunManager 里的 gate_phase 关卡门进度，调整传送门的光效光晕和缩放 |
+| `player.gd` | 玩家控制 | WASD 移动、对角线模拟翻转、NPC 交互 |
+| `npc.gd` | NPC 控制 | 状态机、闲聊气泡、巡逻路径、8方向对角线翻转映射 |
+| `apartment.gd` | 公寓场景 | 9个交互区域触发逻辑、随机事件调度 |
+| `main.gd` | 办公室场景 | 办公室环境控制、8位 NPC 逻辑更新 |
+| `street.gd` | 街区场景 | 气泡消息点、雨夜特效、3位街区 NPC |
+| `character_select.gd` ★ | NEO HARBOR接入终端 | 12帧待机动画系统、F5双风格切换、纹理缓存、ClassTrait重新搭建、着色器驱动、CRT扫描线、异常信号、城市信息流 |
+| `character_panel.gd` ★ | 角色面板 | C键切换、4标签页(属性/技能/背包/剧情)、卡片式UI(稀有度颜色+类型标签)、null安全 |
+| `character_class_manager.gd` ★ | 职业管理 | 4职业参数设置、33技能等级变体、属性分配与应用 |
+| `story_manager.gd` ★ | 剧情管理 | 5章主线剧情进度控制器、步骤追踪、标记检测 |
+| `dialogue_director.gd` ★ | 对话导演 | 4种对话模式（剧情、日常、好感度、自由对话）节点与离线 Fallback 机制 |
+| `dialogue_ui.gd` | 对话界面 | 打字机效果、NPC 头像展示、好感度指示与占位图生成 |
+| `special_scene.gd` | 传送点逻辑 | 物理传送、区域进出触发 |
+| `map_panel.gd` ★ | 全景地图 UI | 地图拓扑绘制、NPC 位置实时标注与传送 |
+| `quest_tracker_hud.gd` | 任务追踪 HUD | 主界面任务目标实时追踪 |
+| `quest_panel.gd` ★ | 任务面板 | 对象池架构重写，防模糊与自适应分类过滤 |
+| `talisman_overlay.gd` | 符纸界面 | 符纸内容渲染 |
+| `tv_overlay.gd` | 电视界面 | 天气预报和新闻节目切换播放 |
+| `forum_ui.gd` | 论坛 UI | 帖子加载及回复列表渲染 |
+| `forum_data.gd` | 论坛数据模型 | 模拟帖子、评论与离线备用数据 |
+| `balcony_overlay.gd` | 阳台界面 | 阳台夜色与天气粒子远眺 |
+| `sleep_overlay.gd` | 睡觉界面 | 推进日期过渡动画 |
+| `interaction_prompt.gd` | 交互气泡 | 头顶 E 键提示框控制 |
+| `ambient_bubble.gd` | 环境气泡 | NPC 场景闲聊文本框 |
+| `apartment_effects.gd` / `apartment_ambient.gd` / `underground_ambient.gd` / `rain_night_effects.gd` | 场景特效 | 场景特定粒子、光效和音频环境控制器 |
 
 ### 4.2 系统管理脚本 (Autoload 单例) — 新增标注★
 
-| 文件 | 用途 |
-|------|------|
-| `api_client.gd` | HTTP 客户端 |
-| `scene_manager.gd` | 场景切换（transition_to枚举方式） |
-| `day_night_manager.gd` | 昼夜循环 |
-| `audio_manager.gd` | 音频管理 |
-| `save_manager.gd` | 存档管理（含CharacterClassManager+StoryManager数据） |
-| `quest_manager.gd` | 任务管理（18任务+STORY类型+EXP奖励） |
-| `game_manager.gd` | 游戏状态（6维属性+等级+货币+技能+ITEM_DATABASE物品数据库） |
-| `pet_manager.gd` | 宠物管理 |
-| `environment_manager.gd` | 环境事件 |
-| `log_panel.gd` | 日志面板 |
-| `footstep_generator.gd` | 脚步声 |
-| `world_calendar.gd` | 世界日历 |
-| `daily_world_generator.gd` | 每日世界生成 |
-| `media_manager.gd` | 媒体管理 |
-| `ui_theme_manager.gd` | UI主题（含稀有度颜色系统+物品卡片样式） |
-| `weather_effects.gd` | 天气效果 |
-| `CharacterClassManager` ★ | 职业单例 |
-| `StoryManager` ★ | 剧情单例 |
-| `RiftRunManager` ★ | 裂隙战斗流程单例（`res://scripts/rift/rift_run_manager.gd`） |
+在 `project.godot` 中注册的 Autoload 全局单例共 22 个，其用途如下：
+
+| 单例名 | 绑定脚本 | 用途 |
+|--------|----------|------|
+| `Config` | `config.gd` | 全局 API 地址与参数配置 |
+| `APIClient` | `api_client.gd` | 负责 HTTP 通信与 8 位 NPC 的 prompt 初始化 |
+| `DialogueDirector` | `dialogue_director.gd` | 负责 NPC 分支对话的分发与控制 |
+| `LogPanel` | `log_panel.gd` | 登录界面控制台日志与快捷键屏蔽控制 |
+| `AudioManager` | `audio_manager.gd` | BGM、环境音效与 UI 音效混合管理器 |
+| `DayNightManager` | `day_night_manager.gd` | 昼夜循环状态更新（白天/傍晚/夜晚/雨夜） |
+| `FootstepGenerator` | `footstep_generator.gd` | 根据地表材质与移动速度播放脚步声效 |
+| `SaveManager` | `save_manager.gd` | JSON 本地存档持久化（包含角色、任务、剧情、历法） |
+| `QuestManager` | `quest_manager.gd` | 20 个任务的状态机（接取、进度校验、奖励发放） |
+| `SceneManager` | `scene_manager.gd` | 带渐变转场的场景管理器（公寓/街区/办公室/地下/裂隙） |
+| `EnvironmentManager` | `environment_manager.gd` | 场景天气粒子、广告图片源与异常灾害生成器 |
+| `GameManager` | `game_manager.gd` | 核心数据（6维属性、经验、等级、背包物品、稀有度） |
+| `PetManager` | `pet_manager.gd` | 宠物物理跟随控制（登录场景自动挂起） |
+| `UIThemeManager` | `ui_theme_manager.gd` | UI 白天/傍晚/深夜三时段主题色与圆角常量集 |
+| `QuestTrackerHUD` | `quest_tracker_hud.gd` | 主界面任务追踪小部件控制器 |
+| `WorldCalendar` | `world_calendar.gd` | N.H.207 世界历法（5月36天制）计数与计算器 |
+| `MediaManager` | `media_manager.gd` | Unsplash+Pollinations.ai 动态图象抓取及 LRU 缓存 |
+| `DailyWorldGenerator` | `daily_world_generator.gd` | 基于日期种子的每日天气、事件、广告确定性生成 |
+| `WeatherEffects` | `weather_effects.gd` | 雨雪雾霭等全局天气粒子层控制 |
+| `CharacterClassManager` | `character_class_manager.gd` | 职业设定与技能初始化单例 |
+| `StoryManager` | `story_manager.gd` | 主线剧情管理单例 |
+| `RiftRunManager` | `rift/rift_run_manager.gd` | 裂隙战斗进程控制器 (种子生成、选路、属性继承) |
 
 ### 4.3 场景文件 (scenes/) — 新增标注★
 
 | 文件 | 类型 | 描述 |
 |------|------|------|
-| `character_select.tscn` ★ | Control | 角色选择终端界面（主入口，包含 12 帧双风格待机、着色器背景和异常信号） |
-| `character_panel.tscn` ★ | CanvasLayer | 角色面板（C 键打开，含属性、技能树、背包卡片式 UI、剧情 4 标签页） |
-| `apartment.tscn` | Node2D | 玩家公寓场景（含电视新闻、睡觉时段推进、阳台观察） |
-| `main.tscn` | Node2D | 办公室场景（包含 5 办公室 NPC、碰撞体家具） |
-| `street.tscn` | Node2D | 街区场景（包含 3 街区 NPC、霓虹特效与气泡消息） |
-| `underground.tscn` ★ | Node2D | 地下站台场景（哨站观测点，NPC 孙悦在此，含全息公告等纯代码氛围） |
-| `anomaly_space.tscn` ★ | Node2D | 异常空间场景（AI 管理中心，NPC 何真在此，含前往万界镶层的传送门） |
-| `map_panel.tscn` ★ | CanvasLayer | 全景地图 UI（自适应排版，Line2D 连线直达传送） |
-| `rift_run.tscn` ★ | Node2D | 裂隙打怪战斗主场景（包含物理碰撞墙和怪物刷出点） |
-| `rift_enemy.tscn` ★ | CharacterBody2D | 裂隙敌方怪物实体场景 |
-| `rift_projectile.tscn` ★ | Area2D | 战斗子弹/投射物场景 |
-| `rift_hud.tscn` ★ | CanvasLayer | 战斗内血量、体力、冷却等信息显示 HUD |
-| `rift_tile_select.tscn` ★ | CanvasLayer | 9 镶片关卡地图选择 UI 场景 |
-| `rift_result_panel.tscn` ★ | CanvasLayer | 战斗结算奖励与评分展示面板 |
-| `player.tscn` | CharacterBody2D | 玩家角色实体 |
-| `npc.tscn` | CharacterBody2D | 8 位 NPC 基础模板 |
-| `dialogue_ui.tscn` | CanvasLayer | AI NPC 对话对话框 UI |
-| `quest_panel.tscn` ★ | CanvasLayer | 任务面板（静态 Slot 对象池架构重写） |
-| `log_panel.tscn` | CanvasLayer | 系统日志记录面板 |
-| `forum_ui.tscn` | CanvasLayer | 公寓电脑内论坛 UI |
-| `tv_overlay.tscn` | CanvasLayer | 公寓电视机界面 |
-| `balcony_overlay.tscn` | CanvasLayer | 阳台观察视角 overlay |
-| `talisman_overlay.tscn` | CanvasLayer | 符纸画符 overlay |
-| `sleep_overlay.tscn` | CanvasLayer | 睡觉时段推进渐变 overlay |
-| `interaction_prompt.tscn` | CanvasLayer | 场景交互提示气泡 UI |
-| `ambient_bubble.tscn` | CanvasLayer | 环境气泡字幕提示 UI |
-| `fox.tscn` | Node2D | 狐狸宠物跟随实体 |
-| `frog.tscn` | Node2D | 青蛙宠物跟随实体 |
-| `eagle.tscn` | Node2D | 老鹰宠物跟随实体 |
-| `opossum.tscn` | Node2D | 负鼠宠物跟随实体 |
+| `character_select.tscn` ★ | Control | 角色选择终端界面（含 3 个新着色器） |
+| `character_panel.tscn` ★ | CanvasLayer | 角色面板（嵌入所有游戏场景，C键打开） |
+| `apartment.tscn` | Node2D | 公寓场景（含角色面板） |
+| `main.tscn` | Node2D | 办公室场景（8 NPC 巡逻） |
+| `street.tscn` | Node2D | 街区场景（3 街区 NPC + 雨夜霓虹） |
+| `underground.tscn` | Node2D | 地下客运站台传送点场景 |
+| `anomaly_space.tscn` | Node2D | 异常空间传送点与战斗入口场景 |
+| `rift_run.tscn` ★ | Node2D | 裂隙打怪主战场场景 (120 FPS 高帧率优化) |
+| `rift_tile_select.tscn` ★ | CanvasLayer | 战斗关卡/词缀节点选择界面 |
+| `rift_enemy.tscn` ★ | CharacterBody2D | 战斗敌人基础实体场景 |
+| `rift_projectile.tscn` ★ | Area2D | 战斗投射物 (子弹) 实体场景 |
+| `rift_hud.tscn` ★ | CanvasLayer | 战斗血量、能量、击杀、波次与 CD 提示 UI |
+| `rift_result_panel.tscn` ★ | CanvasLayer | 战斗结算面板（展示评分与获取奖励） |
+| `player.tscn` | CharacterBody2D | 玩家实体场景 (主控角色) |
+| `npc.tscn` | CharacterBody2D | NPC 实体场景 (状态机与动作) |
+| `dialogue_ui.tscn` | CanvasLayer | 对话 UI (打字机与心形好感度) |
+| `quest_panel.tscn` ★ | CanvasLayer | 任务面板 (静态槽位对象池架构) |
+| `log_panel.tscn` | CanvasLayer | 登录后台终端日志面板 |
+| `forum_ui.tscn` | CanvasLayer | 论坛覆盖层 |
+| `tv_overlay.tscn` | CanvasLayer | 电视新闻与天气覆盖层 |
+| `balcony_overlay.tscn` | CanvasLayer | 阳台远眺覆盖层 |
+| `talisman_overlay.tscn` | CanvasLayer | 符纸信息覆盖层 |
+| `sleep_overlay.tscn` | CanvasLayer | 睡觉覆盖层 |
+| `interaction_prompt.tscn` | CanvasLayer | 交互 E 按键气泡提示 |
+| `ambient_bubble.tscn` | CanvasLayer | NPC 头顶闲聊气泡 |
+| `fox.tscn` | Node2D | 狐狸宠物 |
+| `frog.tscn` | Node2D | 青蛙宠物 |
+| `eagle.tscn` | Node2D | 老鹰宠物 |
+| `opossum.tscn` | Node2D | 负鼠宠物 |
+| `map_panel.tscn` ★ | CanvasLayer | 全景传送地图面板 |
 
 **总计**: 30个场景文件
+
+### 4.4 战斗相关脚本 (game/scripts/rift/) ★
+
+| 文件 | 用途 | 关键逻辑 |
+|------|------|----------|
+| `rift_run.gd` | 战局循环 | 控制帧率(120fps)、暂停切换、结算分发、异常空间切换 |
+| `rift_player_combat.gd` | 战斗玩家 | 移动控制、8方向精灵反转、普攻(J)与技能(K)触发、翻滚(Space)无敌帧 |
+| `rift_enemy.gd` | 敌人 AI | 寻路追踪玩家、自动攻击判定、受击浮空与血条控制 |
+| `rift_projectile.gd` | 子弹投射 | 移动速度、伤害穿透、碰撞检测与消亡粒子 |
+| `rift_hud.gd` | 战斗 UI | 血条/体力条渲染、击杀连击统计、CD 指示与急撤 |
+| `rift_result_panel.gd` | 结算界面 | 提取 RiftRunManager 结束数据，渲染通关评级及经验奖励 |
+| `rift_tile_select.gd` | 词缀选择 | 渲染 9 阶段的随机词缀战斗路线及按钮交互 |
+| `rift_enemy_spawner.gd` | 刷怪调度 | 波次管理(Wave)、怪物池动态加载与对象池缓存 |
+| `rift_run_manager.gd` | 进度单例 | 运行在 Autoload 下的关卡随机种子与进度持久化单例 |
+| `rift_fx.gd` | 战斗特效 | 闪光、爆炸和受击粒子播放 |
+| `rift_environment_manager.gd` | 战斗背景 | 动态绑定节点背景图并加载异常雨夜材质着色器 |
+| `rift_entry_visual.gd` | 传送门特效 | 异常空间入口的黑洞/扭曲动画效果 |
+
+### 4.5 宠物跟随脚本 (game/scripts/PET/)
+
+| 文件 | 用途 | 关键功能 |
+|------|------|----------|
+| `pet_follow_base.gd` | 宠物基类 | 定义平滑插值跟随、随机待机动作行为树 |
+| `fox.gd` / `frog.gd` / `eagle.gd` / `opossum.gd` | 宠物子类 | 实现四种宠物各自动作帧与独立特技动作(P) |
+
+### 4.6 测试与自检脚本 (game/tests/ & tools/) ★
+
+#### Godot Headless 验证脚本 (game/tests/)
+共 23 个测试脚本，包含：
+- `verify_assets.gd`：静态资源路径与导入合法性检测
+- `verify_teleports.gd`：检测地下站台/异常空间等传送逻辑及连通性
+- `verify_rift_entry.gd` / `verify_rift_data.gd` / `verify_rift_rewards.gd`：裂隙战斗数据正确性与奖励校验
+- `verify_dialogue_director.gd` / `verify_all_dialogue_logic.gd`：分支对话流逻辑与 fallback 兜底正确性测试
+- `verify_inventory_ui.gd` / `verify_equipment_system.gd`：背包系统及装备穿戴数据正确性校验
+
+#### 资源与生成工具脚本 (tools/)
+共 14 个 Python 脚本工具：
+- `generate_characters.py`：利用 SD/DALL-E 生成 4 职业基础立绘与裁切
+- `generate_walking.py`：处理 8 方向行走精灵图动画帧
+- `generate_smooth_anim.py`：自动插值生成 12 帧平滑角色呼吸动画
+- `generate_anime_style.py`：写实风格向二次元动漫风格 AI 转换工具
+- `asset_preview_pipeline.py`：生成静态 HTML/图象预览网页便于快速验证游戏内资产
+- `check_completion.py`：执行全项目资产完整性自检并生成分析报告
+- `regenerate_all.py`：一键全资源重新渲染与编译管线
+- `build_player_class_sprites.py`：整合玩家职业立绘及动画层
+- `generate_class_posters.py` / `generate_npc_sprites.py` / `generate_shadow_idle.py`：用于特定职业与 NPC 特效及精灵生成的辅助工具
+
 
 ### 4.4 特效/脚本/PET — 同前
 
@@ -391,11 +396,12 @@ quest_panel★(对象池架构), log_panel, dialogue_ui, forum_ui, tv_overlay, b
 | `models.py` | Pydantic数据模型 |
 | `logger.py` | 日志系统 |
 
-### 6.2 API 端点（EXPANDED: 7→14）
+### 6.2 API 端点（EXPANDED: 7→17）
 
 | 方法 | 路径 | 功能 | 状态 |
 |------|------|------|------|
 | GET | `/` | 欢迎信息 | ✅ |
+| GET | `/health` | 后端健康检查与配置加载状态 | ✅ |
 | GET | `/npcs/status` | 获取所有NPC状态 | ✅ |
 | GET | `/npcs/batch_dialogue` | 批量对话 | ✅ |
 | POST | `/dialogue` | 发送对话 | ✅ |
@@ -409,6 +415,8 @@ quest_panel★(对象池架构), log_panel, dialogue_ui, forum_ui, tv_overlay, b
 | **POST** | **`/generate/npc-story`** | **AI生成NPC背景故事** | **★新增** |
 | **POST** | **`/generate/dialogue-branch`** | **AI生成对话分支** | **★新增** |
 | **GET** | **`/generate/daily-events`** | **AI生成每日事件** | **★新增** |
+| **GET** | **`/city/status`** | **获取当前城市状态数据 (天气、新闻、异常状态等)** | **★新增** |
+| **GET** | **`/npc/relationship_map`** | **获取 NPC 间关系拓扑网络图数据** | **★新增** |
 
 ---
 
@@ -493,18 +501,24 @@ quest_panel★(对象池架构), log_panel, dialogue_ui, forum_ui, tv_overlay, b
 ## 十、项目目录结构（UPDATED）
 
 ```
-新港·207/
+赛博小镇/
 ├── .trae/
 │   ├── rules/git-commit-message.md
 │   └── specs/
-├── 新港·207项目文档.md                    # 本文件
-├── tools/
-│   └── generate_characters.py ★            # 角色立绘AI生成+精灵图裁切脚本
+├── PROJECT_DOC.md                           # 本文件
+├── tools/                                   # 资源生成与自检工具目录
+│   ├── generate_characters.py ★             # 角色立绘 AI 生成与裁剪
+│   ├── generate_walking.py                  # 8方向行走动画生成
+│   ├── generate_smooth_anim.py ★            # 12帧待机平滑动画生成
+│   ├── generate_anime_style.py              # 二次元风格 AI 转换工具
+│   ├── asset_preview_pipeline.py            # 资产 HTML/图象预览网页生成管线
+│   ├── check_completion.py                  # 资产完整性自动化自检
+│   └── regenerate_all.py                    # 一键重构生成所有资产
 ├── backend/
-│   ├── main.py                              # 14 API端点
+│   ├── main.py                              # 17 API端点
 │   ├── agents.py
 │   ├── config.py                            # 3 LLM + 8 NPC配置
-│   ├── hello_agents_llm.py                  # 三级降级
+│   ├── hello_agents_llm.py                  # 三级降级封装
 │   ├── story_engine.py ★                    # AI剧情引擎
 │   ├── vector_store.py
 │   ├── db_manager.py
@@ -515,32 +529,41 @@ quest_panel★(对象池架构), log_panel, dialogue_ui, forum_ui, tv_overlay, b
 │   ├── logger.py
 │   ├── data/
 │   ├── .env
-│   └── requirements.txt
+│   ├── requirements.txt
+│   └── tests/                               # 后端测试目录 (test_npc_ai_quality.py)
 └── game/
     ├── project.godot                          # 主场景=character_select
     ├── scenes/
-    │   ├── character_select.tscn ★             # 主场景
-    │   ├── character_panel.tscn ★              # 角色面板
-    │   ├── apartment.tscn                      # (含角色面板)
-    │   ├── main.tscn                           # (8 NPC + 角色面板)
-    │   ├── street.tscn                         # (5 NPC + 角色面板)
-    │   └── ... (其余16个场景)
+    │   ├── character_select.tscn ★             # 主场景 (城市接入终端)
+    │   ├── character_panel.tscn ★              # 角色面板 (C键打开)
+    │   ├── apartment.tscn                      # 公寓场景 (含角色面板)
+    │   ├── main.tscn                           # 办公室场景 (8 NPC + 角色面板)
+    │   ├── street.tscn                         # 街区场景 (5 NPC + 角色面板)
+    │   ├── underground.tscn                    # 地下站台场景
+    │   ├── anomaly_space.tscn                  # 异常空间场景
+    │   ├── rift_run.tscn ★                     # 裂隙战斗主关卡
+    │   └── ... (其余22个场景)
     ├── scripts/
     │   ├── character_select.gd ★               # 角色选择（12帧动画+F5切换+纹理缓存）
     │   ├── character_panel.gd ★                 # 角色面板
     │   ├── character_class_manager.gd ★         # 职业管理
     │   ├── story_manager.gd ★                   # 剧情管理
-    │   ├── game_manager.gd                       # (6维属性+等级)
-    │   ├── quest_manager.gd                     # (18任务+STORY)
+    │   ├── dialogue_director.gd ★               # 对话与 Fallback 管理
+    │   ├── game_manager.gd                       # (6维属性+等级+货币)
+    │   ├── quest_manager.gd                     # (20任务+STORY)
     │   ├── save_manager.gd                       # (含职业+剧情存档)
     │   ├── npc.gd                                # (8 NPC display_name)
-    │   ├── generate_smooth_anim.py ★★            # AI 12帧动画生成脚本
-    │   └── ... (其余35+.gd)
+    │   ├── rift/                                # 裂隙打怪战斗系统逻辑目录 (12个脚本)
+    │   │   ├── rift_run.gd                      # 战斗主循环
+    │   │   ├── rift_player_combat.gd            # 玩家战斗控制
+    │   │   └── ...
+    │   ├── PET/                                 # 宠物跟随与行为逻辑 (5个脚本)
+    │   └── ... (其余44个.gd)
     ├── assets/
     │   ├── characters/
     │   │   ├── select/ ★                        # 12帧待机动画(idle+anime双风格各48帧，共96帧)
-    │   │   ├── npcs/                            # NPC精灵图（张三/李四/王五立绘 + 人物展示界面 + 人物移动动作 + 孙悦素材包 + 陈曦目录）
-    │   │   └── avatars/                        # 8 NPC头像
+    │   │   ├── npcs/                            # NPC精灵图（张三/李四/王五立绘 + 展示与动作帧）
+    │   │   └── avatars/                         # 8 NPC头像
     │   ├── backgrounds/
     │   ├── audio/
     │   ├── fonts/
@@ -548,13 +571,15 @@ quest_panel★(对象池架构), log_panel, dialogue_ui, forum_ui, tv_overlay, b
     ├── shaders/                                 # 着色器目录（已优化，像素运算↓80%+）
     │   ├── grid_overlay.gdshader ★            # 扫描网格着色器（旧版）
     │   ├── grid_overlay.tres ★
-    │   ├── city_network.gdshader ★★          # 动态城市网络背景（已优化：循环5+3，↑原20+6）
+    │   ├── city_network.gdshader ★★          # 动态城市网络背景
     │   ├── city_network.tres ★★
     │   ├── scan_line.gdshader ★★             # CRT扫描线
     │   ├── scan_line.tres ★★
-    │   ├── glitch.gdshader ★★                # 故障/异常效果（已重构：去屏幕采样，青色版）
+    │   ├── glitch.gdshader ★★                # 故障/异常效果
     │   └── glitch.tres ★★
-    └── ...
+    └── tests/                                   # 23 个 Godot Headless 验证脚本
+        ├── verify_assets.gd
+        └── ...
 ```
 
 ---
@@ -637,13 +662,13 @@ quest_panel★(对象池架构), log_panel, dialogue_ui, forum_ui, tv_overlay, b
 - 前端语言: GDScript
 - 后端语言: Python (FastAPI)
 - 分辨率: 1280×720
-- 项目路径: /Users/xieqing/Desktop/后期/ai agent/新港·207
+- 项目路径: /Users/xieqing/Desktop/后期/ai agent/赛博小镇
 - 游戏主目录: game/
 - 后端目录: backend/
 
 ## 核心架构
 游戏采用Autoload单例层架构，当前注册的Autoload包括：
-APIClient, SceneManager, DayNightManager, AudioManager, SaveManager, QuestManager, GameManager, PetManager, EnvironmentManager, LogPanel, FootstepGenerator, WorldCalendar, DailyWorldGenerator, MediaManager, UIThemeManager, WeatherEffects, **CharacterClassManager**, **StoryManager**
+Config, APIClient, DialogueDirector, LogPanel, AudioManager, DayNightManager, FootstepGenerator, SaveManager, QuestManager, SceneManager, EnvironmentManager, GameManager, PetManager, UIThemeManager, QuestTrackerHUD, WorldCalendar, MediaManager, DailyWorldGenerator, WeatherEffects, CharacterClassManager, StoryManager, RiftRunManager
 
 ## 已完成功能（全面更新版）
 - 角色选择系统（4职业：CIPHER/CHROME/ECHO/SHADOW，NEO HARBOR城市接入终端，三栏身份档案布局，动态城市网络背景+CRT扫描线+异常信号系统+城市信息流，3新着色器city_network/scan_line/glitch）
@@ -657,14 +682,16 @@ APIClient, SceneManager, DayNightManager, AudioManager, SaveManager, QuestManage
 - 主线剧情5章"维度裂缝"
 - 角色面板（C键，属性/技能/背包/剧情4标签页）
 - 存档系统（含职业+剧情数据）
-- 后端14个API端点 + AI剧情引擎
+- 世界地图与传送系统（双向传送、空气墙、连通拓扑图、NPC 实时定位）
+- 裂隙打怪战斗系统（2D 动作关卡、词缀选路、怪物波次与对象池、普攻/技能/翻滚无敌帧、战斗 HUD、结算系统、120 FPS 优化）
+- 后端17个API端点 + AI剧情引擎
 
-## 当前脚本清单（~45个.gd + 4 PET/）
-核心: config/player/npc/apartment/main/street/character_select/character_panel/character_class_manager/story_manager
-系统单例(~17): api_client/scene_manager/day_night_manager/audio_manager/save_manager/quest_manager/game_manager/pet_manager/environment_manager/log_panel/footstep_generator/world_calendar/daily_world_generator/media_manager/ui_theme_manager/weather_effects/CharacterClassManager/StoryManager
-UI: dialogue_ui/interaction_prompt/quest_panel/forum_ui/forum_data/tv_overlay/balcony_overlay/talisman_overlay/sleep_overlay/ambient_bubble/character_panel
-特效: rain_night_effects/apartment_effects/apartment_ambient
-宠物: fox/opossum/eagle/frog
+## 当前脚本清单（61个.gd + 23个测试脚本）
+核心: config/player/npc/apartment/main/street/character_select/character_panel/character_class_manager/story_manager/dialogue_director/special_scene/map_panel/quest_tracker_hud/dialogue_ui
+系统单例(22): Config/APIClient/DialogueDirector/LogPanel/AudioManager/DayNightManager/FootstepGenerator/SaveManager/QuestManager/SceneManager/EnvironmentManager/GameManager/PetManager/UIThemeManager/QuestTrackerHUD/WorldCalendar/MediaManager/DailyWorldGenerator/WeatherEffects/CharacterClassManager/StoryManager/RiftRunManager
+UI/特效: dialogue_ui/interaction_prompt/quest_panel/forum_ui/forum_data/tv_overlay/balcony_overlay/talisman_overlay/sleep_overlay/ambient_bubble/character_panel/rain_night_effects/apartment_effects/apartment_ambient/underground_ambient
+宠物: fox/opossum/eagle/frog/pet_follow_base
+战斗(12): rift_run/rift_player_combat/rift_enemy/rift_projectile/rift_hud/rift_result_panel/rift_tile_select/rift_enemy_spawner/rift_run_manager/rift_fx/rift_environment_manager/rift_entry_visual
 
 ## 开发规范
 1. 修改代码前先读取文件，理解上下文
