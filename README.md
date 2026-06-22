@@ -93,6 +93,27 @@
 - **ChromaDB**（向量数据库）
 - LLM API 密钥（Groq / MiMo / DeepSeek 至少一个）
 
+### 方式一：使用一键启动脚本（推荐，最简便）
+
+如果您是 macOS 用户，可以使用一键启动脚本极速启动游戏：
+
+```bash
+# 1. 克隆并进入目录
+git clone https://github.com/14sword/neo-harbor-207.git
+cd neo-harbor-207
+
+# 2. 运行一键启动脚本（会自动检测配置 .env、后台拉起后端，并运行游戏）
+./homebrew/cyber-town-launcher.sh
+```
+
+*(可选)* 如果您想将 Python FastAPI 后端独立注册为 macOS 的系统后台常驻服务，可以通过远程 URL 安装 Formula：
+```bash
+brew install https://raw.githubusercontent.com/14sword/neo-harbor-207/main/homebrew/cyber-town-backend.rb
+brew services start cyber-town-backend
+```
+
+### 方式二：手动配置运行
+
 ### 1. 克隆项目
 
 ```bash
