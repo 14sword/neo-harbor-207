@@ -11,13 +11,22 @@ echo "====== 赛博小镇城市接入终端 // NEO HARBOR 207 ======"
 ENV_PATH="backend/.env"
 if [ ! -f "$ENV_PATH" ]; then
     echo "[!] 未检测到 API 密钥配置文件，正在初始化环境..."
-    read -p "请输入 Groq API Key (直接回车跳过): " groq_key
-    read -p "请输入 MiMo API Key (直接回车跳过): " mimo_key
+    echo "系统支持配置任意 API 密钥与环境变量（如 GROQ_API_KEY, MIMO_API_KEY 等）。"
+    echo "请输入您想设置的配置项键名与对应值（直接回车结束配置）："
+    echo "--------------------------------------------------------"
     
-    echo "MIMO_API_KEY=$mimo_key" > "$ENV_PATH"
-    echo "GROQ_API_KEY=$groq_key" >> "$ENV_PATH"
-    echo "DEEPSEEK_API_KEY=" >> "$ENV_PATH"
-    echo "ENABLE_BATCH_DIALOGUE_REFRESH=false" >> "$ENV_PATH"
+    # 初始化文件并写入基础默认配置
+    echo "ENABLE_BATCH_DIALOGUE_REFRESH=false" > "$ENV_PATH"
+    
+    while true; do
+        read -p "请输入键名 (如 GROQ_API_KEY，直接回车结束): " key_name
+        if [ -z "$key_name" ]; then
+            break
+        fi
+        read -p "请输入 $key_name 的值: " key_value
+        echo "${key_name}=${key_value}" >> "$ENV_PATH"
+        echo "[✓] 已添加: ${key_name}"
+    done
     echo "[✓] 配置文件已生成: backend/.env"
 fi
 
